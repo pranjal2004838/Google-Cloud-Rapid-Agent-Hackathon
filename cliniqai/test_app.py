@@ -19,7 +19,8 @@ def test_health():
     data = r.json()
     print(f"  Status: {data['status']}")
     print(f"  MongoDB: {data['mongodb']}")
-    print(f"  Google API Key Set: {data['google_api_key_set']}")
+    print(f"  Google Cloud Project Set: {data['google_cloud_project_set']}")
+    print(f"  GCS Bucket Set: {data['gcs_upload_bucket_set']}")
     assert data["status"] == "running", "FAIL: Server not running"
     print("  ✓ PASSED")
 

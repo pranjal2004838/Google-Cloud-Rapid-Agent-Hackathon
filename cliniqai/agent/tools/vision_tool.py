@@ -1,4 +1,5 @@
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 import json
 import os
 from PIL import Image
@@ -15,15 +16,14 @@ def extract_from_prescription(image_bytes: bytes) -> dict:
     """
     
     # Check if API key is configured
-    api_key = os.getenv("GOOGLE_API_KEY")
-    if not api_key or "your_google" in api_key:
-        return {"error": "GOOGLE_API_KEY not configured. Set it in .env file."}
-    
-    # Configure Gemini with your API key
-    genai.configure(api_key=api_key)
-    
-    # We use 'gemini-2.0-flash' because it's fast and good at vision
-    model = genai.GenerativeModel('gemini-2.0-flash')
+    project_id = os.getenv("GOOGLE_CLOUD_PROJECT")
+    location = os.getenv("GOOGLE_CLOUD_LOCATION", "us-central1")
+
+    if not project_id or "your_project" in project_id:
+        return {"error": "GOOGLE_CLOUD_PROJECT not configured. Set it in .env file."}
+
+    # Use Gemini on Vertex AI to match the Google Cloud-native architecture.
+    client = genai.Client(vertexai=True, project=project_id, location=location)
     
     # Convert raw bytes from the web upload into an image object
     try:
@@ -57,17 +57,24 @@ def extract_from_prescription(image_bytes: bytes) -> dict:
         "allergies_mentioned": ["list of allergies if mentioned"],
         "notes": "any other important notes",
         "confidence": {
-            "patient_name": 0.0 to 1.0,
-            "patient_age": 0.0 to 1.0,
-            "patient_gender": 0.0 to 1.0,
-            "visit_date": 0.0 to 1.0,
-            "doctor_name": 0.0 to 1.0,
-            "clinic_name": 0.0 to 1.0,
-            "diagnosis": 0.0 to 1.0,
-            "medicines": [0.0 to 1.0 for each medicine],
-            "tests_ordered": 0.0 to 1.0,
-            "allergies_mentioned": 0.0 to 1.0,
-            "notes": 0.0 to 1.0
+            "patient_name": 0.0,
+            "patient_age": 0.0,
+            "patient_gender": 0.0,
+            "visit_date": 0.0,
+            "doctor_name": 0.0,
+            "clinic_name": 0.0,
+            "diagnosis": 0.0,
+            "medicines": [
+                {
+                    "name": 0.0,
+                    "dose": 0.0,
+                    "frequency": 0.0,
+                    "duration": 0.0
+                }
+            ],
+            "tests_ordered": 0.0,
+            "allergies_mentioned": 0.0,
+            "notes": 0.0
         }
     }
     
@@ -75,13 +82,17 @@ def extract_from_prescription(image_bytes: bytes) -> dict:
     1. If the document is in Hindi, translate the content to English.
     2. Return ONLY the JSON. No preamble, no explanation.
     3. Be very precise with medicine names.
+    4. Confidence scores must be numbers between 0.0 and 1.0.
     """
     
     # Generate the response
     try:
-        response = model.generate_content([prompt, image])
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=[prompt, types.Part.from_bytes(data=image_bytes, mime_type="image/jpeg")],
+        )
     except Exception as e:
-        return {"error": f"Gemini API call failed: {str(e)}"}
+        return {"error": f"Gemini on Vertex AI call failed: {str(e)}"}
     
     # The response text might contain markdown blocks like ```json ... ```
     # We need to clean it to get just the JSON string
