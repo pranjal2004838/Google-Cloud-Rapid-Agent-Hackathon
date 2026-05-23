@@ -1,0 +1,16 @@
+{
+	"folders": [
+		{
+			"name": "Google-Cloud-Rapid-Agent-Hackathon",
+			"path": "."
+		},
+		{
+			"path": "../extensions"
+		},
+		{
+			"path": "cliniqai"
+		}
+	],
+	"settings": {},
+	"workbenchMode": "windsurf-agent-window"
+}
