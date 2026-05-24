@@ -322,6 +322,74 @@ cliniqai_agent = Agent(
 )
 ```
 
+**Phase 1 Upgrade Path: Move from Single-Agent to Multi-Agent Safely**
+
+If you want more judge appeal without turning the system into a fragile mess, use a **small multi-agent pattern**: **one supervisor agent + 3 or 4 specialized agents**, not a swarm. The key is to make each agent responsible for exactly one job and force all handoffs through a shared typed state object.
+
+**Recommended agent layout**
+1. **Supervisor Agent** → routes work, tracks progress, decides which agent runs next. It should not do extraction, retrieval, or safety reasoning itself.
+2. **Extraction Agent** → reads the uploaded prescription or lab image and outputs normalized structured medical data with confidence scores. It does not check allergies or search MongoDB.
+3. **Patient Context Agent** → fetches patient history, allergies, prior medicines, and duplicate-visit signals from MongoDB. It does not reinterpret the prescription.
+4. **Safety Agent** → evaluates the new prescription against allergies, current medicines, and prior conditions. It does not write to the database.
+5. **Record Update / Summary Agent** → writes the final approved record, appends audit events, and prepares the concise clinician-facing summary.
+
+**How to plan it so new failure points do not appear**
+
+**1. Prevent handoff errors with one shared state model**
+- Create a single shared state object that every agent reads from and writes to
+- Use strict typed schemas (Pydantic models) for every state section
+- Example state keys: `request_meta`, `source_document`, `extracted_data`, `patient_context`, `safety_assessment`, `write_result`, `doctor_summary`
+- Each agent is allowed to update only its own section of the state
+- Never pass loose free-form text between agents when structured JSON is possible
+
+**2. Prevent inconsistent schemas with contract-first design**
+- Define all input/output models before writing agent prompts
+- Keep one canonical medicine schema everywhere: `name`, `dose`, `frequency`, `duration`, `confidence`
+- Keep one canonical alert schema everywhere: `severity`, `type`, `message`, `evidence`, `requires_override`
+- Validate every agent output before the next agent runs
+- If validation fails, stop the workflow and return a review-needed response instead of guessing
+
+**3. Prevent duplicated reasoning with hard boundaries**
+- The supervisor routes; it does not do medical reasoning
+- The extraction agent reads documents; it does not do risk analysis
+- The patient context agent retrieves history; it does not rewrite extraction results
+- The safety agent evaluates risk; it does not persist records
+- The record update agent writes to MongoDB and builds the audit log; it does not re-run extraction or safety checks
+
+**4. Prevent latency by planning parallel work**
+- Run document extraction and patient lookup in parallel when the phone number is already known from the upload form
+- Wait for both results before running the safety agent
+- Keep the write step last so the database is updated only after extraction and safety checks are complete
+- Do not add extra model calls unless they improve safety or demo quality in a visible way
+
+**5. Prevent hard debugging with an agent trace log**
+- The supervisor should log: which agent ran, start time, finish time, input schema version, output validation result, and failure reason if any
+- Store a lightweight workflow trace alongside the audit record for demo transparency
+- If an alert looks wrong, you should be able to say exactly whether extraction, retrieval, or safety evaluation produced the bad output
+
+**6. Prevent silent bad decisions with review gates**
+- If extraction confidence is below threshold, mark the case `review_required`
+- If the safety agent produces a HIGH severity alert, require explicit doctor acknowledgement before record finalization
+- If patient matching is ambiguous, stop automatic merge and ask for confirmation
+- If schema validation fails at any stage, return an internal workflow error rather than continuing
+
+**Recommended execution flow**
+1. UI uploads prescription image + phone number
+2. Backend stores source file in Cloud Storage and creates initial workflow state
+3. Supervisor launches Extraction Agent and Patient Context Agent in parallel
+4. Supervisor validates both outputs against typed schemas
+5. Supervisor invokes Safety Agent with extracted medicines + patient context
+6. If risk is acceptable, Supervisor invokes Record Update / Summary Agent
+7. Backend returns structured result + alerts + traceability metadata to the UI
+
+**Why this is the right sweet spot**
+- More impressive than a monolithic route handler
+- Easier to explain to judges than a giant tool list or a swarm of tiny agents
+- Safer than a single prompt that tries to read, reason, search, alert, and write all at once
+- Still simple enough to build within hackathon time
+
+**Important constraint:** do not introduce multi-agent complexity unless each agent has a clear job, a strict schema, and a visible reason to exist. In a medical workflow, fewer well-defined agents beat a flashy swarm every time.
+
 **Step 8: Write the Drug Conflict Checker**
 
 This is the feature that makes judges say "wow." The checker covers three layers: direct allergy matches, cross-allergy warnings (e.g. penicillin allergy → flag cephalosporins), and drug-drug interactions. All drug families are chosen for relevance to Indian primary care — nimesulide, aceclofenac, cotrimoxazole, and azithromycin are prescribed constantly in Indian clinics and were missing from the original version.
@@ -493,9 +561,19 @@ def check_drug_conflicts(
 
 ---
 
+### NEW Dual-Platform Architecture (Mobile Number Driven HIE)
+
+CliniqAI is pivoting to a Centralized AI Health Information Exchange (HIE). The system will use the patient's mobile number as the universal identifier across all clinics. The UI will be split into two distinct portals: one for Healthcare Providers (Clinics/Doctors) and one for Patients.
+
+
 ### PHASE 2 — Build the Web UI (Days 6–7)
 
-The UI is what judges see in the demo video. Do not use Streamlit — it looks like every other hackathon project. Instead, write a single `ui/index.html` file using Tailwind CSS (CDN) and vanilla JS. It takes the same amount of time, calls the same FastAPI backend, and looks like a real product. The layout has three zones: a left sidebar for navigation and recent patients, a centre panel for document upload, and a right panel for the extracted record and alerts.
+The UI is built on a **Dual-Platform Architecture**. Instead of just a clinic dashboard, it acts as a Centralized Health Information Exchange (HIE).
+There will be two distinct portals connecting to the same backend:
+1. **Clinic/Provider Portal:** A write-access dashboard for doctors to upload prescriptions and view patient history based on their mobile number.
+2. **Patient Portal:** A read-only consumer dashboard for patients to track their own health across multiple clinics.
+
+Do not use Streamlit — it looks like every other hackathon project. Instead, use HTML files (`ui/clinic.html` and `ui/patient.html`) with Tailwind CSS (CDN) and vanilla JS.
 
 **Design principles to follow:**
 - White background, thin borders, no gradients, no shadows
