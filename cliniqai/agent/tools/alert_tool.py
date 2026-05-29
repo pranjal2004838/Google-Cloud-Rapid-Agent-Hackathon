@@ -75,6 +75,12 @@ DANGEROUS_COMBOS = {
     ("lithium", "ace_inhibitor"): ("HIGH", "ACE inhibitors raise lithium levels"),
     ("methotrexate", "nsaid"): ("HIGH", "NSAIDs reduce methotrexate clearance — toxicity"),
     ("methotrexate", "cotrimoxazole"): ("HIGH", "Combined folate antagonism — severe toxicity"),
+    ("aspirin", "nsaid"): ("HIGH", "Double NSAID use — Aspirin + NSAID increases GI bleeding risk significantly"),
+    ("ibuprofen", "aspirin"): ("HIGH", "Ibuprofen and Aspirin together — severe GI bleeding and renal risk"),
+    ("ibuprofen", "ace_inhibitor"): ("HIGH", "NSAIDs reduce ACE inhibitor efficacy and increase renal failure risk"),
+    ("nsaid", "ace_inhibitor"): ("HIGH", "NSAIDs + ACE inhibitors — acute kidney injury risk (triple whammy)"),
+    ("nsaid", "aspirin"): ("HIGH", "NSAID + Aspirin combination — high GI bleeding risk"),
+    ("diclofenac", "aspirin"): ("HIGH", "Diclofenac + Aspirin — double NSAID risk: GI bleed, ulcer, renal failure"),
     ("amlodipine", "simvastatin"): ("MEDIUM", "Simvastatin dose should not exceed 20mg with amlodipine"),
     ("ace_inhibitor", "potassium"): ("MEDIUM", "Hyperkalaemia risk — monitor potassium levels"),
     ("digoxin", "clarithromycin"): ("MEDIUM", "Macrolides raise digoxin levels"),
@@ -239,3 +245,53 @@ def check_drug_conflicts(patient_allergies: list, current_medicines: list, new_m
         "high_severity": sum(1 for a in alerts if a["severity"] == "HIGH"),
         "alerts": alerts
     }
+
+# --- Extra helpers for chatbot -----------------------------------------------
+
+def check_allergy_to_medicine(allergy_list: list, medicine_name: str) -> dict:
+    """
+    Check whether a specific medicine conflicts with a patient allergy list.
+    Returns {has_conflict, severity, message}.
+    """
+    med_lower = medicine_name.strip().lower()
+    for allergy in allergy_list:
+        a = allergy.strip().lower()
+        for family, drugs in ALLERGY_FAMILIES.items():
+            if a == family or a in drugs:
+                if any(d in med_lower for d in drugs):
+                    return {
+                        "has_conflict": True,
+                        "severity": "HIGH",
+                        "message": f"ALLERGY: {medicine_name} belongs to {family} family — patient is allergic to {allergy}.",
+                    }
+    return {"has_conflict": False, "severity": "NONE", "message": ""}
+
+
+def get_drug_interactions_for_patient(current_medicines: list, new_medicine_name: str) -> list:
+    """
+    Return all known interactions between existing medicines and a new medicine.
+    current_medicines: list of dicts with 'name' key.
+    Returns list of interaction dicts with severity + message.
+    """
+    new_lower = new_medicine_name.strip().lower()
+    interactions = []
+    current_names = [m.get("name", "").strip().lower() for m in current_medicines]
+
+    def _resolve_family(name: str) -> list[str]:
+        result = [name]
+        for fam, drugs in ALLERGY_FAMILIES.items():
+            if any(d in name for d in drugs) or name == fam:
+                result.append(fam)
+        return result
+
+    new_tokens = _resolve_family(new_lower)
+
+    for cur in current_names:
+        cur_tokens = _resolve_family(cur)
+        for a in cur_tokens:
+            for b in new_tokens:
+                key = (a, b) if (a, b) in DANGEROUS_COMBOS else ((b, a) if (b, a) in DANGEROUS_COMBOS else None)
+                if key:
+                    sev, msg = DANGEROUS_COMBOS[key]
+                    interactions.append({"severity": sev, "current_drug": cur, "new_drug": new_lower, "message": msg})
+    return interactions

@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CliniqAI — Unified Patient Records for Rural India</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+
+    * { box-sizing: border-box; margin: 0; padding: 0; scroll-behavior: smooth; }
+    body { font-family: 'Inter', sans-serif; background: #f9fafb; color: #111827; overflow-x: hidden; }
+
+    /* ── Scroll-triggered fade-in ── */
+    .reveal {
+      opacity: 0;
+      transform: translateY(32px);
+      transition: opacity 0.7s cubic-bezier(.4,0,.2,1), transform 0.7s cubic-bezier(.4,0,.2,1);
+    }
+    .reveal.visible { opacity: 1; transform: translateY(0); }
+
+    .reveal-left  { opacity:0; transform:translateX(-40px); transition: opacity .7s cubic-bezier(.4,0,.2,1), transform .7s cubic-bezier(.4,0,.2,1); }
+    .reveal-right { opacity:0; transform:translateX(40px);  transition: opacity .7s cubic-bezier(.4,0,.2,1), transform .7s cubic-bezier(.4,0,.2,1); }
+    .reveal-left.visible, .reveal-right.visible { opacity:1; transform:translateX(0); }
+
+    /* delay helpers */
+    .delay-1 { transition-delay: .1s; }
+    .delay-2 { transition-delay: .2s; }
+    .delay-3 { transition-delay: .35s; }
+    .delay-4 { transition-delay: .5s; }
+
+    /* ── Hero gradient background ── */
+    .hero-bg {
+      background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 50%, #0f172a 100%);
+      position: relative;
+      overflow: hidden;
+    }
+    .hero-bg::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(ellipse 80% 60% at 50% 40%, rgba(16,185,129,.12) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    /* animated heartbeat dot */
+    @keyframes pulse-ring {
+      0%   { transform: scale(.8); opacity: .8; }
+      70%  { transform: scale(1.6); opacity: 0; }
+      100% { transform: scale(.8); opacity: 0; }
+    }
+    .pulse-ring {
+      position: absolute;
+      border-radius: 50%;
+      border: 2px solid rgba(16,185,129,.5);
+      animation: pulse-ring 2s ease-out infinite;
+    }
+
+    /* floating particles */
+    @keyframes float-up {
+      0%   { transform: translateY(0) rotate(0deg); opacity: .6; }
+      100% { transform: translateY(-120px) rotate(360deg); opacity: 0; }
+    }
+    .particle {
+      position: absolute;
+      border-radius: 50%;
+      background: rgba(16,185,129,.15);
+      animation: float-up linear infinite;
+    }
+
+    /* ── Stat cards ── */
+    .stat-card {
+      background: white;
+      border: 1px solid #e5e7eb;
+      border-radius: 16px;
+      padding: 28px 24px;
+      transition: transform .3s ease, box-shadow .3s ease;
+    }
+    .stat-card:hover { transform: translateY(-6px); box-shadow: 0 20px 40px rgba(0,0,0,.1); }
+
+    /* ── Timeline ── */
+    .timeline-line {
+      position: absolute;
+      left: 20px;
+      top: 0; bottom: 0;
+      width: 2px;
+      background: linear-gradient(to bottom, #10b981, #dc2626);
+    }
+    .tl-dot {
+      width: 14px; height: 14px;
+      border-radius: 50%;
+      border: 3px solid white;
+      flex-shrink: 0;
+      margin-top: 4px;
+    }
+
+    /* ── Step cards ── */
+    .step-card {
+      background: white;
+      border: 1px solid #e5e7eb;
+      border-radius: 16px;
+      padding: 24px 20px;
+      transition: transform .3s ease, box-shadow .3s ease, border-color .3s;
+    }
+    .step-card:hover { transform: translateY(-4px); border-color: #10b981; box-shadow: 0 12px 30px rgba(16,185,129,.12); }
+
+    /* ── Impact numbers ── */
+    .impact-num {
+      font-size: 2.5rem;
+      font-weight: 900;
+      background: linear-gradient(135deg, #10b981, #059669);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      line-height: 1;
+    }
+
+    /* ── Tech logos ── */
+    .tech-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: white;
+      border: 1px solid #e5e7eb;
+      border-radius: 999px;
+      padding: 10px 18px;
+      font-size: .85rem;
+      font-weight: 600;
+      color: #374151;
+      transition: transform .3s, box-shadow .3s, border-color .3s;
+    }
+    .tech-pill:hover { transform: translateY(-3px); box-shadow: 0 8px 20px rgba(0,0,0,.08); border-color: #10b981; }
+
+    /* ── CTA Button ── */
+    .cta-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      background: #10b981;
+      color: white;
+      font-weight: 700;
+      font-size: 1.1rem;
+      padding: 18px 40px;
+      border-radius: 999px;
+      border: none;
+      cursor: pointer;
+      transition: transform .3s, box-shadow .3s, background .3s;
+      box-shadow: 0 4px 15px rgba(16,185,129,.3);
+      text-decoration: none;
+    }
+    .cta-btn:hover {
+      transform: translateY(-3px) scale(1.04);
+      box-shadow: 0 15px 35px rgba(16,185,129,.4);
+      background: #059669;
+    }
+    .cta-btn:active { transform: scale(.97); }
+
+    @keyframes arrow-bounce {
+      0%,100% { transform: translateX(0); }
+      50%      { transform: translateX(6px); }
+    }
+    .cta-btn:hover .arrow { animation: arrow-bounce .6s ease-in-out infinite; }
+
+    /* ── Scroll indicator ── */
+    @keyframes scroll-hint {
+      0%,100% { transform: translateY(0); opacity:.8; }
+      50%      { transform: translateY(8px); opacity:.3; }
+    }
+    .scroll-hint { animation: scroll-hint 1.8s ease-in-out infinite; }
+
+    /* ── Section divider ── */
+    .section-divider {
+      height: 1px;
+      background: linear-gradient(to right, transparent, #e5e7eb, transparent);
+      margin: 0 auto;
+      max-width: 600px;
+    }
+
+    /* nav dot indicator */
+    .nav-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: rgba(255,255,255,.3);
+      cursor: pointer;
+      transition: background .3s, transform .3s;
+    }
+    .nav-dot.active { background: #10b981; transform: scale(1.4); }
+
+    /* ── Crisis flash ── */
+    @keyframes flash-red {
+      0%,100% { box-shadow: 0 0 0 0 rgba(220,38,38,0); }
+      50%      { box-shadow: 0 0 0 12px rgba(220,38,38,.15); }
+    }
+    .crisis-box { animation: flash-red 1.8s ease-in-out infinite; }
+  </style>
+</head>
+<body>
+
+<!-- ─────────────────────────────────────────── -->
+<!-- SECTION 1: HERO                            -->
+<!-- ─────────────────────────────────────────── -->
+<section id="hero" class="hero-bg min-h-screen flex flex-col items-center justify-center px-6 py-20 relative">
+
+  <!-- floating particles -->
+  <div class="particle" style="width:8px;height:8px;left:15%;bottom:20%;animation-duration:6s;animation-delay:0s"></div>
+  <div class="particle" style="width:5px;height:5px;left:30%;bottom:15%;animation-duration:8s;animation-delay:1s"></div>
+  <div class="particle" style="width:10px;height:10px;right:20%;bottom:25%;animation-duration:7s;animation-delay:2s"></div>
+  <div class="particle" style="width:6px;height:6px;right:35%;bottom:10%;animation-duration:9s;animation-delay:.5s"></div>
+
+  <!-- green glow circle -->
+  <div class="relative mb-8" style="width:64px;height:64px">
+    <div class="pulse-ring" style="inset:-10px;animation-delay:0s"></div>
+    <div class="pulse-ring" style="inset:-20px;animation-delay:.4s"></div>
+    <div class="w-16 h-16 bg-emerald-500 rounded-full flex items-center justify-center relative z-10">
+      <svg width="28" height="28" fill="none" viewBox="0 0 24 24">
+        <path d="M12 21C16.9706 21 21 16.9706 21 12C21 7.02944 16.9706 3 12 3C7.02944 3 3 7.02944 3 12C3 16.9706 7.02944 21 12 21Z" stroke="white" stroke-width="1.5"/>
+        <path d="M8 12H16M12 8V16" stroke="white" stroke-width="2" stroke-linecap="round"/>
+      </svg>
+    </div>
+  </div>
+
+  <div class="text-center max-w-3xl">
+    <!-- label -->
+    <span class="inline-block text-emerald-400 text-xs font-semibold tracking-widest uppercase mb-4 reveal visible">
+      Google Cloud × MongoDB Hackathon 2026
+    </span>
+
+    <!-- headline -->
+    <h1 class="text-4xl sm:text-5xl md:text-6xl font-black text-white leading-tight mb-6 reveal visible delay-1">
+      A Patient's Medical History<br/>
+      <span class="text-emerald-400">Shouldn't Die</span> With a Notebook
+    </h1>
+
+    <!-- subheading -->
+    <p class="text-lg text-slate-300 max-w-2xl mx-auto leading-relaxed mb-10 reveal visible delay-2">
+      In rural India, patients visit multiple clinics. No clinic knows the other's records.
+      Allergies are forgotten. Medicines conflict. People die — from errors that are
+      <strong class="text-white">100% preventable</strong>.
+    </p>
+
+    <!-- CTAs -->
+    <div class="flex flex-col sm:flex-row gap-4 justify-center reveal visible delay-3">
+      <a href="#story" class="cta-btn">
+        See What Happens
+        <svg class="arrow w-5 h-5" fill="none" viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </a>
+      <a href="/login" class="inline-flex items-center gap-2 text-white border border-white/30 hover:border-emerald-400 hover:text-emerald-400 font-semibold px-8 py-[18px] rounded-full transition-all duration-300 text-base">
+        Go to App
+      </a>
+    </div>
+  </div>
+
+  <!-- scroll indicator -->
+  <div class="absolute bottom-8 flex flex-col items-center gap-2 scroll-hint">
+    <span class="text-xs text-slate-400 tracking-widest">SCROLL</span>
+    <svg width="16" height="16" fill="none" viewBox="0 0 24 24"><path d="M12 5v14M5 12l7 7 7-7" stroke="rgba(255,255,255,.4)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  </div>
+</section>
+
+
+<!-- ─────────────────────────────────────────── -->
+<!-- SECTION 2: THE NUMBERS                     -->
+<!-- ─────────────────────────────────────────── -->
+<section class="py-20 px-6 bg-white">
+  <div class="max-w-4xl mx-auto">
+
+    <div class="text-center mb-14 reveal">
+      <p class="text-xs font-semibold text-emerald-600 tracking-widest uppercase mb-2">The Reality</p>
+      <h2 class="text-3xl sm:text-4xl font-black text-gray-900">The Numbers Don't Lie</h2>
+      <p class="text-gray-500 mt-2 text-sm">Sources: Indian Medical Association, AIIMS, Indian Journal of Medical Research</p>
+    </div>
+
+    <div class="grid sm:grid-cols-3 gap-6">
+      <div class="stat-card text-center reveal-left delay-1">
+        <div class="text-4xl mb-3">📊</div>
+        <div class="text-4xl font-black text-blue-700 mb-2" data-count="60" data-suffix="%">0</div>
+        <div class="text-sm font-semibold text-gray-800 mb-1">% of patients visit multiple clinics</div>
+        <div class="text-xs text-gray-400">avg 3–4 clinics/year in rural India</div>
+      </div>
+
+      <div class="stat-card text-center reveal delay-2">
+        <div class="text-4xl mb-3">💊</div>
+        <div class="text-4xl font-black text-amber-600 mb-2" data-count="40" data-suffix="%">0</div>
+        <div class="text-sm font-semibold text-gray-800 mb-1">% of prescriptions conflict or duplicate</div>
+        <div class="text-xs text-gray-400">when no shared record system exists</div>
+      </div>
+
+      <div class="stat-card text-center reveal-right delay-3">
+        <div class="text-4xl mb-3">⚠️</div>
+        <div class="text-4xl font-black text-red-600 mb-2">1 Lakh+</div>
+        <div class="text-sm font-semibold text-gray-800 mb-1">preventable deaths/year in India</div>
+        <div class="text-xs text-gray-400">from drug interactions & missed allergies</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="section-divider"></div>
+
+
+<!-- ─────────────────────────────────────────── -->
+<!-- SECTION 3: PRIYA'S STORY                   -->
+<!-- ─────────────────────────────────────────── -->
+<section id="story" class="py-20 px-6 bg-gray-50">
+  <div class="max-w-2xl mx-auto">
+
+    <div class="text-center mb-14 reveal">
+      <p class="text-xs font-semibold text-emerald-600 tracking-widest uppercase mb-2">A Composite Case</p>
+      <h2 class="text-3xl sm:text-4xl font-black text-gray-900">Meet Priya — A Story<br/>That Happens Every Day</h2>
+      <p class="text-gray-500 mt-2 text-sm">Based on real patterns from rural clinics across Maharashtra</p>
+    </div>
+
+    <!-- Timeline -->
+    <div class="relative pl-12">
+      <div class="timeline-line"></div>
+
+      <!-- Visit 1 -->
+      <div class="relative mb-8 reveal delay-1">
+        <div class="absolute left-[-36px] tl-dot bg-emerald-500 border-white shadow"></div>
+        <div class="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
+          <div class="flex items-center justify-between mb-1">
+            <span class="text-xs font-semibold text-emerald-600 uppercase tracking-wide">March 5 · Dr. Patel's Clinic, Nashik</span>
+          </div>
+          <p class="text-sm font-semibold text-gray-800 mb-1">Chief complaint: Severe cough</p>
+          <p class="text-sm text-gray-600">Prescribed: <span class="font-medium text-blue-700">Amoxicillin 500mg</span>, Cough syrup, Paracetamol</p>
+          <p class="text-xs text-gray-400 mt-2">Record kept: handwritten notebook ✏️ — no allergy history asked</p>
+        </div>
+      </div>
+
+      <!-- Visit 2 -->
+      <div class="relative mb-8 reveal delay-2">
+        <div class="absolute left-[-36px] tl-dot bg-amber-400 border-white shadow"></div>
+        <div class="bg-amber-50 border border-amber-200 rounded-xl p-5 shadow-sm">
+          <div class="flex items-center justify-between mb-1">
+            <span class="text-xs font-semibold text-amber-700 uppercase tracking-wide">March 10 · City Hospital, Nashik</span>
+          </div>
+          <p class="text-sm font-semibold text-gray-800 mb-1">Chief complaint: High blood pressure</p>
+          <p class="text-sm text-gray-600">Prescribed: <span class="font-medium text-blue-700">Aspirin 75mg, Amlodipine 5mg, Lisinopril 10mg</span></p>
+          <p class="text-xs text-amber-700 mt-2 font-medium">⚠ No one asked about amoxicillin prescribed 5 days ago</p>
+        </div>
+      </div>
+
+      <!-- Visit 3 -->
+      <div class="relative mb-8 reveal delay-3">
+        <div class="absolute left-[-36px] tl-dot bg-red-500 border-white shadow"></div>
+        <div class="bg-red-50 border border-red-200 rounded-xl p-5 shadow-sm">
+          <div class="flex items-center justify-between mb-1">
+            <span class="text-xs font-semibold text-red-700 uppercase tracking-wide">March 15 · Dr. Gupta's Clinic, Nashik</span>
+          </div>
+          <p class="text-sm font-semibold text-gray-800 mb-1">Chief complaint: Joint pain</p>
+          <p class="text-sm text-gray-600">Prescribed: <span class="font-medium text-red-700">Ibuprofen 400mg, Diclofenac 50mg</span></p>
+          <div class="mt-2 space-y-1">
+            <p class="text-xs font-semibold text-red-700">🚨 Ibuprofen + Aspirin → GI bleeding risk (SEVERE)</p>
+            <p class="text-xs font-semibold text-red-700">🚨 Ibuprofen + Lisinopril → Kidney damage risk (SEVERE)</p>
+          </div>
+          <p class="text-xs text-gray-400 mt-2">No one checked. Priya didn't know to mention her other medicines.</p>
+        </div>
+      </div>
+
+      <!-- Crisis -->
+      <div class="relative reveal delay-4">
+        <div class="absolute left-[-36px] tl-dot bg-red-700 border-white shadow"></div>
+        <div class="crisis-box bg-red-600 text-white rounded-xl p-5 shadow-lg">
+          <span class="text-xs font-semibold tracking-wide uppercase opacity-75">March 18 · Emergency Room</span>
+          <p class="text-lg font-black mt-1 mb-2">Priya collapses.</p>
+          <div class="grid grid-cols-2 gap-2 text-xs mb-3">
+            <div>🏥 4 days in ICU</div>
+            <div>💸 ₹3,50,000 bill</div>
+            <div>🫁 Permanent kidney damage</div>
+            <div>😔 2 weeks off work</div>
+          </div>
+          <p class="text-sm font-bold border-t border-white/30 pt-3">This was 100% preventable.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="section-divider"></div>
+
+
+<!-- ─────────────────────────────────────────── -->
+<!-- SECTION 4: THE SOLUTION                    -->
+<!-- ─────────────────────────────────────────── -->
+<section class="py-20 px-6 bg-white">
+  <div class="max-w-3xl mx-auto text-center">
+
+    <div class="reveal mb-12">
+      <p class="text-xs font-semibold text-emerald-600 tracking-widest uppercase mb-2">The Fix</p>
+      <h2 class="text-3xl sm:text-4xl font-black text-gray-900 mb-4">
+        CliniqAI — One Patient.<br/>One Mobile Number.<br/>
+        <span class="text-emerald-600">Complete History.</span>
+      </h2>
+      <p class="text-gray-500 max-w-xl mx-auto text-base leading-relaxed">
+        Any clinic. Any doctor. Any time.<br/>
+        Search a patient's mobile number → see every visit, every medicine, every allergy, across every clinic.
+      </p>
+    </div>
+
+    <!-- Diagram -->
+    <div class="flex items-center justify-center gap-4 flex-wrap reveal delay-1">
+      <!-- Clinics -->
+      <div class="flex flex-col gap-3">
+        <div class="bg-blue-50 border border-blue-200 rounded-xl px-5 py-3 text-sm font-semibold text-blue-800 text-center shadow-sm">🏥 Clinic A</div>
+        <div class="bg-blue-50 border border-blue-200 rounded-xl px-5 py-3 text-sm font-semibold text-blue-800 text-center shadow-sm">🏥 Clinic B</div>
+        <div class="bg-blue-50 border border-blue-200 rounded-xl px-5 py-3 text-sm font-semibold text-blue-800 text-center shadow-sm">🏥 Clinic C</div>
+      </div>
+
+      <!-- Arrow -->
+      <div class="text-emerald-500">
+        <svg width="48" height="48" fill="none" viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+
+      <!-- CliniqAI -->
+      <div class="bg-emerald-600 text-white rounded-2xl px-8 py-5 shadow-lg text-center">
+        <div class="text-xl font-black">CliniqAI</div>
+        <div class="text-xs text-emerald-200 mt-1">Unified Record</div>
+      </div>
+
+      <!-- Arrow -->
+      <div class="text-emerald-500">
+        <svg width="48" height="48" fill="none" viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+
+      <!-- Safe outcome -->
+      <div class="bg-emerald-50 border-2 border-emerald-400 rounded-2xl px-6 py-5 shadow-sm text-center">
+        <div class="text-2xl mb-1">✅</div>
+        <div class="text-sm font-black text-emerald-800">Priya is Safe</div>
+        <div class="text-xs text-emerald-600 mt-1">Conflict caught</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="section-divider"></div>
+
+
+<!-- ─────────────────────────────────────────── -->
+<!-- SECTION 5: HOW IT WORKS                    -->
+<!-- ─────────────────────────────────────────── -->
+<section class="py-20 px-6 bg-gray-50">
+  <div class="max-w-4xl mx-auto">
+
+    <div class="text-center mb-14 reveal">
+      <p class="text-xs font-semibold text-emerald-600 tracking-widest uppercase mb-2">How It Works</p>
+      <h2 class="text-3xl sm:text-4xl font-black text-gray-900">4 Steps to Save a Life</h2>
+    </div>
+
+    <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
+      <div class="step-card reveal-left delay-1">
+        <div class="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center text-xl mb-4">📸</div>
+        <div class="text-xs font-bold text-emerald-600 mb-1">STEP 1</div>
+        <h3 class="font-bold text-gray-900 mb-2 text-sm">Upload Prescription</h3>
+        <p class="text-xs text-gray-500 leading-relaxed">Photo of any prescription — handwritten, Hindi, English. Any format.</p>
+      </div>
+
+      <div class="step-card reveal delay-2">
+        <div class="w-10 h-10 bg-purple-100 rounded-xl flex items-center justify-center text-xl mb-4">🤖</div>
+        <div class="text-xs font-bold text-emerald-600 mb-1">STEP 2</div>
+        <h3 class="font-bold text-gray-900 mb-2 text-sm">Gemini AI Extracts</h3>
+        <p class="text-xs text-gray-500 leading-relaxed">Google's Gemini reads the document, extracts medicines, diagnosis, allergies.</p>
+      </div>
+
+      <div class="step-card reveal delay-3">
+        <div class="w-10 h-10 bg-red-100 rounded-xl flex items-center justify-center text-xl mb-4">⚡</div>
+        <div class="text-xs font-bold text-emerald-600 mb-1">STEP 3</div>
+        <h3 class="font-bold text-gray-900 mb-2 text-sm">Check Conflicts</h3>
+        <p class="text-xs text-gray-500 leading-relaxed">Cross-checks against ALL previous clinics. Flags drug interactions instantly.</p>
+      </div>
+
+      <div class="step-card reveal-right delay-4">
+        <div class="w-10 h-10 bg-emerald-100 rounded-xl flex items-center justify-center text-xl mb-4">📊</div>
+        <div class="text-xs font-bold text-emerald-600 mb-1">STEP 4</div>
+        <h3 class="font-bold text-gray-900 mb-2 text-sm">Unified Record</h3>
+        <p class="text-xs text-gray-500 leading-relaxed">Saved to MongoDB. Next clinic instantly sees full history by mobile number.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="section-divider"></div>
+
+
+<!-- ─────────────────────────────────────────── -->
+<!-- SECTION 6: IMPACT                          -->
+<!-- ─────────────────────────────────────────── -->
+<section class="py-20 px-6 bg-white">
+  <div class="max-w-4xl mx-auto text-center">
+
+    <div class="reveal mb-14">
+      <p class="text-xs font-semibold text-emerald-600 tracking-widest uppercase mb-2">The Impact</p>
+      <h2 class="text-3xl sm:text-4xl font-black text-gray-900">If Every Rural Clinic Used CliniqAI</h2>
+    </div>
+
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-6">
+      <div class="reveal-left delay-1">
+        <div class="impact-num">1 Lakh+</div>
+        <div class="text-sm font-semibold text-gray-700 mt-2">Lives Saved/Year</div>
+      </div>
+      <div class="reveal delay-2">
+        <div class="impact-num">₹50K Cr</div>
+        <div class="text-sm font-semibold text-gray-700 mt-2">Healthcare Savings</div>
+      </div>
+      <div class="reveal delay-3">
+        <div class="impact-num">10M+</div>
+        <div class="text-sm font-semibold text-gray-700 mt-2">Patients Protected</div>
+      </div>
+      <div class="reveal-right delay-4">
+        <div class="impact-num">5 min</div>
+        <div class="text-sm font-semibold text-gray-700 mt-2">To Save a Life</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="section-divider"></div>
+
+
+<!-- ─────────────────────────────────────────── -->
+<!-- SECTION 7: TECH STACK                      -->
+<!-- ─────────────────────────────────────────── -->
+<section class="py-16 px-6 bg-gray-50">
+  <div class="max-w-3xl mx-auto text-center reveal">
+    <p class="text-xs font-semibold text-emerald-600 tracking-widest uppercase mb-6">Built On</p>
+    <div class="flex flex-wrap justify-center gap-3">
+      <span class="tech-pill">🔷 Google Gemini 2.5 Flash</span>
+      <span class="tech-pill">🍃 MongoDB Atlas</span>
+      <span class="tech-pill">☁️ Google Cloud Run</span>
+      <span class="tech-pill">🤖 Agent Dev Kit (ADK)</span>
+      <span class="tech-pill">📦 Cloud Storage</span>
+      <span class="tech-pill">⚡ FastAPI</span>
+    </div>
+    <p class="text-xs text-gray-400 mt-4">Works offline. Scales to millions. Costs ₹0 on free tier.</p>
+  </div>
+</section>
+
+
+<!-- ─────────────────────────────────────────── -->
+<!-- SECTION 8: CTA                             -->
+<!-- ─────────────────────────────────────────── -->
+<section class="py-24 px-6 bg-gradient-to-br from-emerald-600 to-emerald-800 text-white">
+  <div class="max-w-xl mx-auto text-center reveal">
+    <h2 class="text-3xl sm:text-4xl font-black mb-4">See It In Action</h2>
+    <p class="text-emerald-100 mb-10 text-base leading-relaxed">
+      Upload a prescription photo. Watch Gemini extract data. See how CliniqAI prevents the next Priya's story.
+    </p>
+    <a href="/login" class="cta-btn" style="background:white;color:#059669;box-shadow:0 4px 20px rgba(0,0,0,.2)">
+      Try It Now — It's Free
+      <svg class="arrow w-5 h-5" fill="none" viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </a>
+    <p class="text-emerald-200 text-xs mt-4">No login required · No data stored · Live demo</p>
+  </div>
+</section>
+
+<!-- footer -->
+<footer class="bg-gray-900 text-gray-400 text-center text-xs py-6">
+  CliniqAI · Google Cloud Rapid Agent Hackathon 2026 · Built with ❤️ for rural India
+</footer>
+
+
+<!-- ─────────────────────────────────────────── -->
+<!-- SCRIPTS                                     -->
+<!-- ─────────────────────────────────────────── -->
+<script>
+// ── Intersection Observer for reveal animations ──
+const revealEls = document.querySelectorAll('.reveal, .reveal-left, .reveal-right');
+
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      entry.target.classList.add('visible');
+    }
+  });
+}, { threshold: 0.15 });
+
+revealEls.forEach(el => observer.observe(el));
+
+
+// ── Counter animation ──
+function animateCount(el) {
+  const target = parseInt(el.getAttribute('data-count'));
+  const suffix = el.getAttribute('data-suffix') || '';
+  const duration = 1200;
+  const start = performance.now();
+
+  function step(now) {
+    const progress = Math.min((now - start) / duration, 1);
+    // ease-out
+    const eased = 1 - Math.pow(1 - progress, 3);
+    const current = Math.floor(eased * target);
+    el.textContent = current.toLocaleString('en-IN') + suffix;
+    if (progress < 1) requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
+}
+
+const counterObserver = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting && entry.target.hasAttribute('data-count')) {
+      animateCount(entry.target);
+      counterObserver.unobserve(entry.target);
+    }
+  });
+}, { threshold: 0.5 });
+
+document.querySelectorAll('[data-count]').forEach(el => counterObserver.observe(el));
+
+
+// ── Smooth scroll for anchor links ──
+document.querySelectorAll('a[href^="#"]').forEach(a => {
+  a.addEventListener('click', e => {
+    e.preventDefault();
+    document.querySelector(a.getAttribute('href'))?.scrollIntoView({ behavior: 'smooth' });
+  });
+});
+</script>
+</body>
+</html>

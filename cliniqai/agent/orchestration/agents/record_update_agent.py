@@ -22,6 +22,10 @@ import uuid
 from datetime import date, datetime
 
 from agent.orchestration.state import WorkflowState, WriteResult
+from agent.gcp.kms import encrypt_data
+from agent.gcp.logger import get_logger
+
+logger = get_logger(__name__)
 
 
 class RecordUpdateAgent:
@@ -162,12 +166,20 @@ class RecordUpdateAgent:
             previous_hash="",
         )
 
+        # Encrypt sensitive PII using Cloud KMS
+        encrypted_pii = encrypt_data({
+            "name": extracted.patient_name,
+            "age": extracted.patient_age,
+            "gender": extracted.patient_gender
+        })
+
         patient_doc = {
             "patient_id": str(uuid.uuid4()),
             "phone": phone,
-            "name": extracted.patient_name,
-            "age": extracted.patient_age,
-            "gender": extracted.patient_gender,
+            "name": "[ENCRYPTED_KMS]",
+            "age": "[ENCRYPTED_KMS]",
+            "gender": "[ENCRYPTED_KMS]",
+            "secure_pii": encrypted_pii,
             "known_allergies": context.all_allergies,
             "conditions": extracted.diagnosis,
             "visits": [visit],

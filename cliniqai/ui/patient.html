@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CliniqAI — Patient Portal</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Inter', sans-serif; background: #f8fafc; color: #0f172a; min-height: 100vh; display: flex; flex-direction: column; }
+
+    /* ── Header ── */
+    header { background: white; border-bottom: 1px solid #e2e8f0; padding: 16px 24px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 50; }
+
+    /* ── Layout ── */
+    .container { max-width: 1100px; margin: 0 auto; padding: 32px 24px; display: flex; gap: 24px; flex: 1; }
+    .main-col { flex: 1; }
+    .chat-col { width: 340px; flex-shrink: 0; display: flex; flex-direction: column; }
+
+    /* ── Cards ── */
+    .card { background: white; border: 1px solid #e2e8f0; border-radius: 16px; padding: 24px; margin-bottom: 20px; }
+    
+    .timeline-item { position: relative; padding-left: 28px; padding-bottom: 24px; }
+    .timeline-item::before { content: ''; position: absolute; left: 7px; top: 2px; bottom: -2px; width: 2px; background: #e2e8f0; }
+    .timeline-item:last-child::before { display: none; }
+    .timeline-dot { position: absolute; left: 0; top: 2px; width: 16px; height: 16px; border-radius: 50%; background: white; border: 3px solid #2563eb; }
+
+    /* ── Chatbot ── */
+    .chat-panel { background: white; border: 1px solid #e2e8f0; border-radius: 16px; display: flex; flex-direction: column; height: calc(100vh - 140px); position: sticky; top: 88px; overflow: hidden; }
+    .chat-header { background: #2563eb; color: white; padding: 14px 16px; font-weight: 600; font-size: 0.9rem; display: flex; align-items: center; gap: 8px; }
+    .chat-body { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; background: #f8fafc; }
+    .chat-input-area { padding: 12px; background: white; border-top: 1px solid #e2e8f0; }
+    
+    .chat-msg-bot { background: white; border: 1px solid #e2e8f0; border-radius: 12px 12px 12px 4px; padding: 10px 14px; font-size: 0.85rem; color: #1e293b; max-width: 90%; align-self: flex-start; line-height: 1.5; box-shadow: 0 1px 2px rgba(0,0,0,0.02); }
+    .chat-msg-user { background: #2563eb; color: white; border-radius: 12px 12px 4px 12px; padding: 10px 14px; font-size: 0.85rem; margin-left: auto; max-width: 90%; align-self: flex-end; line-height: 1.5; }
+
+    .input-field { width: 100%; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 12px; font-size: 0.85rem; outline: none; transition: border-color 0.2s; }
+    .input-field:focus { border-color: #2563eb; }
+
+    .badge-red { background: #fee2e2; color: #dc2626; padding: 4px 10px; border-radius: 999px; font-size: 0.75rem; font-weight: 600; display: inline-block; }
+
+    @media (max-width: 768px) {
+      .container { flex-direction: column; }
+      .chat-col { width: 100%; }
+      .chat-panel { height: 500px; position: static; }
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="flex items-center gap-3">
+      <div class="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white font-bold">C</div>
+      <div>
+        <div class="font-bold text-sm text-slate-900">CliniqAI</div>
+        <div class="text-[10px] text-slate-500 uppercase tracking-widest">Patient Portal</div>
+      </div>
+    </div>
+    <a href="/login" class="text-xs font-semibold text-slate-500 hover:text-slate-800">Sign Out</a>
+  </header>
+
+  <div class="container">
+    
+    <!-- LEFT: History -->
+    <div class="main-col">
+      <div id="loading" class="text-slate-400 text-sm text-center py-12">Loading your medical history...</div>
+      
+      <div id="content" class="hidden">
+        <h1 class="text-2xl font-black text-slate-900 mb-6">Hello, <span id="p-name" class="text-blue-600"></span></h1>
+        
+        <div class="card bg-blue-50/50 border-blue-100">
+          <h2 class="text-xs font-bold text-blue-800 uppercase tracking-widest mb-4">Your Health Summary</h2>
+          <div id="allergies-box" class="mb-2"></div>
+          <p class="text-sm text-slate-600"><strong>Age/Gender:</strong> <span id="p-meta"></span></p>
+          <p class="text-sm text-slate-600"><strong>Conditions:</strong> <span id="p-conditions"></span></p>
+        </div>
+
+        <h2 class="text-lg font-bold text-slate-900 mb-4 mt-8">Recent Visits</h2>
+        <div class="card" id="timeline">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT: Chatbot -->
+    <div class="chat-col">
+      <div class="chat-panel">
+        <div class="chat-header">
+          <span>AI Health Assistant</span>
+        </div>
+        <div id="chat-messages" class="chat-body">
+          <div class="chat-msg-bot">
+            Hi! I am your AI assistant. You can ask me anything about your medicines, side effects, or recent visits.
+          </div>
+        </div>
+        <div class="chat-input-area flex gap-2">
+          <input id="chat-input" class="input-field" type="text" placeholder="Ask about your medicines..." onkeydown="if(event.key==='Enter') sendChat()" />
+          <button onclick="sendChat()" class="bg-blue-600 text-white px-4 rounded-lg font-bold hover:bg-blue-700 transition-colors">↑</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    const urlParams = new URLSearchParams(window.location.search);
+    const phone = urlParams.get('phone');
+
+    if (!phone) {
+      window.location.href = '/login';
+    }
+
+    async function loadPatient() {
+      try {
+        const res = await fetch((window.location.protocol === 'file:' ? 'http://localhost:8000' : '') + '/patient/' + encodeURIComponent(phone));
+        const data = await res.json();
+        
+        document.getElementById('loading').classList.add('hidden');
+        document.getElementById('content').classList.remove('hidden');
+
+        if (data.found) {
+          const p = data.patient;
+          document.getElementById('p-name').textContent = p.name || 'Patient';
+          document.getElementById('p-meta').textContent = `${p.age || '?'} yrs · ${p.gender || '?'}`;
+          
+          if (p.known_allergies && p.known_allergies.length) {
+            document.getElementById('allergies-box').innerHTML = 
+              `<div class="badge-red mb-3">⚠ Known Allergies: ${p.known_allergies.join(', ')}</div>`;
+          }
+
+          document.getElementById('p-conditions').textContent = 
+            (p.conditions || []).join(', ') || 'None recorded';
+
+          const tl = document.getElementById('timeline');
+          if (p.visits && p.visits.length) {
+            // Reverse to show newest first
+            const visits = [...p.visits].reverse();
+            tl.innerHTML = visits.map(v => {
+              const meds = v.medicines || [];
+              const medHtml = meds.map(m => `<span class="inline-block bg-slate-100 border border-slate-200 text-slate-700 text-xs px-2 py-1 rounded-md mr-1 mb-1">${m.name} ${m.dose||''}</span>`).join('');
+              return `
+                <div class="timeline-item">
+                  <div class="timeline-dot"></div>
+                  <div class="text-xs font-bold text-blue-600 mb-1">${v.date || 'Unknown date'}</div>
+                  <div class="font-bold text-sm text-slate-800">${v.doctor || 'Unknown Clinic'}</div>
+                  <div class="text-xs text-slate-500 mb-2">${(v.diagnosis||[]).join(', ')}</div>
+                  <div>${medHtml || '<span class="text-xs text-slate-400">No medicines prescribed</span>'}</div>
+                </div>
+              `;
+            }).join('');
+          } else {
+            tl.innerHTML = `<div class="text-sm text-slate-500">No visit history found.</div>`;
+          }
+        } else {
+          document.getElementById('content').innerHTML = `
+            <div class="text-center py-12">
+              <h2 class="text-xl font-bold text-slate-800 mb-2">No Records Found</h2>
+              <p class="text-slate-500">We couldn't find any medical records linked to ${phone}.</p>
+              <a href="/login" class="inline-block mt-6 text-blue-600 font-semibold hover:underline">← Back to Login</a>
+            </div>
+          `;
+        }
+      } catch (e) {
+        document.getElementById('loading').textContent = 'Error loading records. Is the server running?';
+      }
+    }
+
+    // Chatbot logic
+    async function sendChat() {
+      const input = document.getElementById('chat-input');
+      const q = input.value.trim();
+      if (!q) return;
+
+      appendMsg('user', q);
+      input.value = '';
+
+      try {
+        const res = await fetch((window.location.protocol === 'file:' ? 'http://localhost:8000' : '') + '/chat', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ query: q, phone: phone })
+        });
+        const data = await res.json();
+        appendMsg('bot', data.answer || "I'm sorry, I couldn't find an answer.");
+      } catch (e) {
+        appendMsg('bot', "Connection error. Please try again later.");
+      }
+    }
+
+    function appendMsg(sender, text) {
+      const msgs = document.getElementById('chat-messages');
+      const div = document.createElement('div');
+      div.className = sender === 'user' ? 'chat-msg-user' : 'chat-msg-bot';
+      div.textContent = text;
+      msgs.appendChild(div);
+      msgs.scrollTop = msgs.scrollHeight;
+    }
+
+    loadPatient();
+  </script>
+</body>
+</html>

@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CliniqAI — Login</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Inter', sans-serif; background: #f8fafc; color: #0f172a; height: 100vh; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+
+    /* ── Background decoration ── */
+    .bg-deco { position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: -1; }
+    .bg-deco::before { content: ''; position: absolute; top: -10%; left: -10%; width: 50%; height: 50%; background: radial-gradient(circle, rgba(16,185,129,0.08) 0%, transparent 70%); }
+    .bg-deco::after { content: ''; position: absolute; bottom: -10%; right: -10%; width: 50%; height: 50%; background: radial-gradient(circle, rgba(37,99,235,0.05) 0%, transparent 70%); }
+
+    /* ── Card & Animation ── */
+    .login-card { background: white; border-radius: 20px; box-shadow: 0 20px 40px -10px rgba(0,0,0,0.08), 0 1px 3px rgba(0,0,0,0.05); width: 100%; max-width: 440px; padding: 36px 40px; position: relative; z-index: 10; animation: fadeUp 0.6s ease-out forwards; opacity: 0; transform: translateY(20px); }
+    @keyframes fadeUp { to { opacity: 1; transform: translateY(0); } }
+
+    /* ── Tabs ── */
+    .tab-container { display: flex; background: #f1f5f9; padding: 4px; border-radius: 12px; margin-bottom: 28px; position: relative; }
+    .tab { flex: 1; text-align: center; padding: 10px 0; font-size: 0.85rem; font-weight: 600; color: #64748b; cursor: pointer; border-radius: 8px; transition: color 0.3s; z-index: 2; }
+    .tab.active { color: #0f172a; }
+    .tab-bg { position: absolute; top: 4px; bottom: 4px; width: calc(50% - 4px); background: white; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); z-index: 1; }
+
+    /* ── Form Inputs ── */
+    .form-group { margin-bottom: 20px; }
+    .form-label { display: block; font-size: 0.75rem; font-weight: 600; color: #475569; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.05em; }
+    .form-input { width: 100%; border: 1.5px solid #e2e8f0; border-radius: 10px; padding: 12px 14px; font-size: 0.9rem; color: #0f172a; outline: none; transition: border-color 0.2s, box-shadow 0.2s; background: #fafafa; font-family: 'Inter', sans-serif; }
+    .form-input:focus { border-color: #10b981; box-shadow: 0 0 0 3px rgba(16,185,129,0.12); background: white; }
+
+    /* ── Button ── */
+    .btn-submit { width: 100%; background: #10b981; color: white; border: none; border-radius: 10px; padding: 14px; font-size: 0.95rem; font-weight: 600; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s, background 0.2s; display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 10px; }
+    .btn-submit:hover { background: #059669; transform: translateY(-1px); box-shadow: 0 6px 16px rgba(16,185,129,0.25); }
+    .btn-submit:active { transform: translateY(0); }
+
+    .demo-badge { position: absolute; top: -12px; right: -12px; background: #f59e0b; color: white; font-size: 0.65rem; font-weight: 800; padding: 4px 10px; border-radius: 99px; text-transform: uppercase; letter-spacing: 0.05em; transform: rotate(12deg); box-shadow: 0 4px 10px rgba(245,158,11,0.3); }
+  </style>
+</head>
+<body>
+  <div class="bg-deco"></div>
+
+  <div class="login-card">
+    <div class="demo-badge">Hackathon Demo</div>
+
+    <div class="text-center mb-8">
+      <div class="w-12 h-12 bg-emerald-600 rounded-xl flex items-center justify-center text-white text-xl font-bold shadow-md mx-auto mb-3">C</div>
+      <h1 class="text-2xl font-black text-slate-900">Welcome to CliniqAI</h1>
+      <p class="text-xs text-slate-500 mt-1">Unified Health Records for India</p>
+    </div>
+
+    <!-- Toggle -->
+    <div class="tab-container">
+      <div id="tab-bg" class="tab-bg" style="transform: translateX(0%);"></div>
+      <div id="tab-clinic" class="tab active" onclick="setMode('clinic')">Clinic Mode</div>
+      <div id="tab-patient" class="tab" onclick="setMode('patient')">Patient Mode</div>
+    </div>
+
+    <!-- Clinic Login -->
+    <form id="form-clinic" onsubmit="handleClinicLogin(event)">
+      <div class="form-group">
+        <label class="form-label">Doctor ID</label>
+        <input type="text" class="form-input" value="DR_DEMO_001" required />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Hospital ID</label>
+        <input type="text" class="form-input" value="HSP_MUMBAI_001" required />
+      </div>
+      <div class="form-group mb-6">
+        <label class="form-label">Password</label>
+        <input type="password" class="form-input" value="demo123" required />
+      </div>
+      <button type="submit" class="btn-submit">
+        Enter Clinic Dashboard →
+      </button>
+    </form>
+
+    <!-- Patient Login -->
+    <form id="form-patient" class="hidden" onsubmit="handlePatientLogin(event)">
+      <div class="form-group">
+        <label class="form-label">Registered Mobile Number</label>
+        <input id="patient-phone" type="tel" class="form-input" value="9876543210" required />
+        <p class="text-[10px] text-slate-400 mt-1 pl-1">Use 9876543210 for the Priya Sharma demo</p>
+      </div>
+      <div class="form-group mb-6">
+        <label class="form-label">OTP</label>
+        <input type="text" class="form-input" value="1234" required />
+      </div>
+      <button type="submit" class="btn-submit" style="background:#2563eb;">
+        View My Records →
+      </button>
+    </form>
+
+  </div>
+
+  <script>
+    function setMode(mode) {
+      const tabBg = document.getElementById('tab-bg');
+      const formClinic = document.getElementById('form-clinic');
+      const formPatient = document.getElementById('form-patient');
+      const tabClinic = document.getElementById('tab-clinic');
+      const tabPatient = document.getElementById('tab-patient');
+
+      if (mode === 'clinic') {
+        tabBg.style.transform = 'translateX(0%)';
+        tabClinic.classList.add('active');
+        tabPatient.classList.remove('active');
+        formClinic.classList.remove('hidden');
+        formPatient.classList.add('hidden');
+      } else {
+        tabBg.style.transform = 'translateX(100%)';
+        tabPatient.classList.add('active');
+        tabClinic.classList.remove('active');
+        formPatient.classList.remove('hidden');
+        formClinic.classList.add('hidden');
+      }
+    }
+
+    function handleClinicLogin(e) {
+      e.preventDefault();
+      // Add a tiny delay for button animation effect
+      setTimeout(() => {
+        window.location.href = '/hospital';
+      }, 150);
+    }
+
+    function handlePatientLogin(e) {
+      e.preventDefault();
+      const phone = document.getElementById('patient-phone').value.trim();
+      setTimeout(() => {
+        window.location.href = '/patient?phone=' + encodeURIComponent(phone);
+      }, 150);
+    }
+  </script>
+</body>
+</html>

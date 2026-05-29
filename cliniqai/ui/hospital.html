@@ -1,0 +1,1119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CliniqAI — Clinic Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Inter', sans-serif; background: #f8fafc; color: #0f172a; height: 100vh; overflow: hidden; }
+
+    /* ── Scrollbars ── */
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 99px; }
+    ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+    /* ── Zone panels ── */
+    .zone { display: flex; flex-direction: column; height: 100%; overflow: hidden; }
+    .zone-body { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+
+    /* ── Cards / panels ── */
+    .card {
+      background: white;
+      border: 1px solid #e2e8f0;
+      border-radius: 14px;
+      padding: 14px;
+      transition: box-shadow .2s ease;
+    }
+    .card:hover { box-shadow: 0 4px 16px rgba(0,0,0,.06); }
+
+    /* ── Buttons ── */
+    .btn-primary {
+      background: #10b981;
+      color: white;
+      border: none;
+      border-radius: 10px;
+      padding: 10px 16px;
+      font-size: .82rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: background .2s, transform .15s, box-shadow .2s;
+      width: 100%;
+    }
+    .btn-primary:hover { background: #059669; transform: translateY(-1px); box-shadow: 0 6px 16px rgba(16,185,129,.25); }
+    .btn-primary:active { transform: translateY(0); }
+    .btn-primary:disabled { background: #a7f3d0; cursor: not-allowed; transform: none; box-shadow: none; }
+
+    .btn-ghost {
+      background: transparent;
+      color: #64748b;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 8px 12px;
+      font-size: .78rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all .2s;
+    }
+    .btn-ghost:hover { background: #f1f5f9; color: #0f172a; border-color: #cbd5e1; }
+
+    /* ── Input ── */
+    .input-field {
+      width: 100%;
+      border: 1.5px solid #e2e8f0;
+      border-radius: 10px;
+      padding: 9px 12px;
+      font-size: .83rem;
+      color: #0f172a;
+      background: #fafafa;
+      outline: none;
+      transition: border-color .2s, box-shadow .2s;
+      font-family: 'Inter', sans-serif;
+    }
+    .input-field:focus { border-color: #10b981; box-shadow: 0 0 0 3px rgba(16,185,129,.12); background: white; }
+
+    /* ── Drop zone ── */
+    .drop-zone {
+      border: 2px dashed #cbd5e1;
+      border-radius: 14px;
+      padding: 28px 16px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color .2s, background .2s;
+      background: #f8fafc;
+    }
+    .drop-zone:hover, .drop-zone.drag-over {
+      border-color: #10b981;
+      background: #f0fdf4;
+    }
+
+    /* ── Alert badge ── */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: .7rem;
+      font-weight: 600;
+      padding: 3px 8px;
+      border-radius: 999px;
+    }
+    .badge-red    { background: #fee2e2; color: #dc2626; }
+    .badge-green  { background: #d1fae5; color: #059669; }
+    .badge-blue   { background: #dbeafe; color: #2563eb; }
+    .badge-amber  { background: #fef3c7; color: #d97706; }
+    .badge-slate  { background: #f1f5f9; color: #475569; }
+
+    /* ── Alert box ── */
+    .alert-high {
+      background: #fef2f2;
+      border: 1.5px solid #fca5a5;
+      border-radius: 12px;
+      padding: 14px;
+    }
+    .alert-medium {
+      background: #fffbeb;
+      border: 1.5px solid #fcd34d;
+      border-radius: 12px;
+      padding: 14px;
+    }
+    .alert-ok {
+      background: #f0fdf4;
+      border: 1.5px solid #6ee7b7;
+      border-radius: 12px;
+      padding: 14px;
+    }
+
+    /* ── Spinner ── */
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .spinner {
+      width: 18px; height: 18px;
+      border: 2px solid rgba(255,255,255,.4);
+      border-top-color: white;
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+      display: inline-block;
+    }
+    .spinner-dark {
+      width: 18px; height: 18px;
+      border: 2px solid rgba(16,185,129,.2);
+      border-top-color: #10b981;
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+      display: inline-block;
+    }
+
+    /* ── Progress bar ── */
+    @keyframes progress-slide {
+      0%   { width: 0%; }
+      30%  { width: 35%; }
+      60%  { width: 70%; }
+      85%  { width: 88%; }
+      100% { width: 100%; }
+    }
+    .progress-bar { animation: progress-slide 4s ease-out forwards; }
+
+    /* ── Chat messages ── */
+    .chat-msg-bot {
+      background: #f1f5f9;
+      border-radius: 12px 12px 12px 4px;
+      padding: 10px 12px;
+      font-size: .78rem;
+      color: #1e293b;
+      max-width: 90%;
+      line-height: 1.5;
+    }
+    .chat-msg-user {
+      background: #10b981;
+      color: white;
+      border-radius: 12px 12px 4px 12px;
+      padding: 10px 12px;
+      font-size: .78rem;
+      margin-left: auto;
+      max-width: 90%;
+      line-height: 1.5;
+    }
+
+    /* ── Typing indicator ── */
+    @keyframes typing-dot {
+      0%,80%,100% { transform: scale(0.6); opacity:.4; }
+      40%          { transform: scale(1);   opacity:1;  }
+    }
+    .typing-dot { width:6px;height:6px;border-radius:50%;background:#94a3b8;animation:typing-dot 1.2s ease-in-out infinite; }
+    .typing-dot:nth-child(2){ animation-delay:.2s; }
+    .typing-dot:nth-child(3){ animation-delay:.4s; }
+
+    /* ── Patient avatar ── */
+    .avatar {
+      width: 38px; height: 38px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #10b981, #059669);
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: .75rem;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+
+    /* ── Tooltip ── */
+    .tooltip-wrap { position: relative; }
+    .tooltip-wrap:hover .tooltip { opacity:1; pointer-events:auto; }
+    .tooltip {
+      position: absolute;
+      bottom: calc(100% + 6px);
+      left: 50%;
+      transform: translateX(-50%);
+      background: #1e293b;
+      color: white;
+      font-size: .68rem;
+      padding: 4px 8px;
+      border-radius: 6px;
+      white-space: nowrap;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity .2s;
+      z-index: 100;
+    }
+
+    /* ── Zone header ── */
+    .zone-header {
+      padding: 14px 16px 10px;
+      border-bottom: 1px solid #f1f5f9;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+    }
+    .zone-title { font-size: .75rem; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: .06em; }
+
+    /* ── Recent patient row ── */
+    .recent-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: background .15s;
+    }
+    .recent-row:hover { background: #f8fafc; }
+
+    /* ── Confidence bar ── */
+    .conf-bar-wrap { flex:1; height: 4px; background: #e2e8f0; border-radius: 99px; overflow: hidden; }
+    .conf-bar { height: 100%; border-radius: 99px; transition: width .6s ease; }
+
+    /* ── Fade in animation ── */
+    @keyframes fadeIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+    .fade-in { animation: fadeIn .4s ease forwards; }
+
+    /* ── Mobile overlay ── */
+    @media (max-width: 768px) {
+      .desktop-only { display: none !important; }
+      body { overflow: auto; height: auto; }
+      .main-layout { flex-direction: column !important; height: auto !important; }
+      .zone { height: auto; min-height: 400px; }
+      .zone-body { overflow: visible; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ──────────────────────────────────── -->
+<!-- TOP BAR                             -->
+<!-- ──────────────────────────────────── -->
+<header class="bg-white border-b border-slate-200 px-5 py-3 flex items-center justify-between shrink-0 z-50" style="height:56px">
+  <div class="flex items-center gap-3">
+    <a href="/" class="flex items-center gap-2 group">
+      <div class="w-8 h-8 bg-emerald-600 rounded-lg flex items-center justify-center text-white text-xs font-bold shadow-sm group-hover:bg-emerald-700 transition-colors">C</div>
+      <div>
+        <div class="font-bold text-sm text-slate-900 leading-none">CliniqAI</div>
+        <div class="text-[10px] text-slate-400 leading-none mt-0.5">Clinic Dashboard</div>
+      </div>
+    </a>
+    <span class="text-slate-200 desktop-only">|</span>
+    <span id="doctor-info-header" class="text-xs text-slate-500 font-medium desktop-only">Dr. Sharma's Clinic, Mumbai</span>
+  </div>
+
+  <div class="flex items-center gap-2">
+    <span id="db-badge" class="badge badge-blue desktop-only">
+      <span class="w-1.5 h-1.5 rounded-full bg-blue-500 inline-block"></span> MongoDB connected
+    </span>
+    <span id="alert-header-badge" class="badge badge-red hidden">
+      <svg width="10" height="10" fill="none" viewBox="0 0 24 24"><path d="M12 9v4M12 17h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      <span id="alert-count-text">0 alerts</span>
+    </span>
+  </div>
+</header>
+
+
+<!-- ──────────────────────────────────── -->
+<!-- MAIN LAYOUT: 4 ZONES               -->
+<!-- ──────────────────────────────────── -->
+<div class="main-layout flex" style="height: calc(100vh - 56px)">
+
+
+  <!-- ════════════════════════════════ -->
+  <!-- ZONE 1: PATIENT SEARCH         -->
+  <!-- ════════════════════════════════ -->
+  <div class="zone border-r border-slate-100" style="width:22%;min-width:200px">
+    <div class="zone-header">
+      <span class="zone-title">Patients</span>
+      <span id="patient-count-badge" class="badge badge-slate">0 today</span>
+    </div>
+
+    <div class="zone-body">
+
+      <!-- Search -->
+      <div class="card">
+        <label class="text-xs font-semibold text-slate-500 mb-2 block">Search by mobile number</label>
+        <div class="flex gap-2">
+          <input id="search-phone" class="input-field" type="tel" placeholder="e.g. 9876543210"
+            onkeydown="if(event.key==='Enter') searchPatient()" maxlength="15" />
+        </div>
+        <button class="btn-primary mt-2" onclick="searchPatient()">
+          <svg width="14" height="14" fill="none" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8" stroke="currentColor" stroke-width="2"/><path d="m21 21-4.35-4.35" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          Search
+        </button>
+      </div>
+
+      <!-- Search result -->
+      <div id="search-result" class="hidden fade-in"></div>
+
+      <!-- Recent patients -->
+      <div>
+        <p class="text-xs font-semibold text-slate-400 uppercase tracking-wide px-1 mb-2">Recent Patients</p>
+        <div id="recent-list" class="flex flex-col gap-1">
+          <!-- filled by JS -->
+          <div class="text-xs text-slate-300 text-center py-4">Loading…</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ════════════════════════════════ -->
+  <!-- ZONE 2: UPLOAD & EXTRACTION    -->
+  <!-- ════════════════════════════════ -->
+  <div class="zone border-r border-slate-100" style="width:28%;min-width:240px">
+    <div class="zone-header">
+      <span class="zone-title">Upload & Extract</span>
+    </div>
+
+    <div class="zone-body">
+
+      <!-- Phone for upload -->
+      <div class="card">
+        <label class="text-xs font-semibold text-slate-500 mb-2 block">Patient mobile number</label>
+        <input id="upload-phone" class="input-field" type="tel" placeholder="9876543210" maxlength="15" />
+      </div>
+
+      <!-- Drop zone -->
+      <div id="drop-zone" class="drop-zone" onclick="document.getElementById('file-input').click()"
+        ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event)">
+        <div class="text-3xl mb-2">📄</div>
+        <p class="text-sm font-semibold text-slate-600 mb-1">Drop prescription here</p>
+        <p class="text-xs text-slate-400">JPG · PNG · PDF · Works with handwriting</p>
+        <input id="file-input" type="file" accept=".jpg,.jpeg,.png,.pdf" class="hidden" onchange="previewFile(event)" />
+      </div>
+
+      <!-- Preview -->
+      <img id="preview" class="hidden rounded-xl border border-slate-200 max-h-36 object-contain w-full" />
+
+      <!-- Extract button -->
+      <button id="extract-btn" class="btn-primary" onclick="processDocument()" disabled>
+        <svg width="14" height="14" fill="none" viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Extract &amp; Save to Records
+      </button>
+
+      <!-- Progress -->
+      <div id="progress-wrap" class="hidden">
+        <div class="flex justify-between text-xs text-slate-400 mb-1">
+          <span id="progress-label">Processing…</span>
+          <span id="progress-pct">0%</span>
+        </div>
+        <div class="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
+          <div id="progress-bar" class="h-full bg-emerald-500 rounded-full w-0 transition-all duration-300"></div>
+        </div>
+      </div>
+
+      </div>
+  </div>
+
+
+  <!-- ════════════════════════════════ -->
+  <!-- ZONE 3: RECORD + ALERTS        -->
+  <!-- ════════════════════════════════ -->
+  <div class="zone border-r border-slate-100" style="width:28%;min-width:240px">
+    <div class="zone-header">
+      <span class="zone-title">Extracted Record</span>
+      <div id="workflow-status" class="badge badge-slate hidden">—</div>
+    </div>
+
+    <div class="zone-body">
+
+      <!-- Empty state -->
+      <div id="empty-state" class="flex flex-col items-center justify-center flex-1 text-center py-12">
+        <div class="text-5xl mb-4 opacity-30">📋</div>
+        <p class="text-sm text-slate-400 font-medium">Upload a prescription</p>
+        <p class="text-xs text-slate-300 mt-1">Results will appear here</p>
+      </div>
+
+      <!-- Alert: HIGH -->
+      <div id="alert-high-box" class="hidden fade-in alert-high">
+        <div class="flex items-center gap-2 mb-2">
+          <svg width="16" height="16" fill="none" viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" stroke="#dc2626" stroke-width="2"/><path d="M12 9v4M12 17h.01" stroke="#dc2626" stroke-width="2" stroke-linecap="round"/></svg>
+          <span class="text-sm font-bold text-red-700">Drug Conflict Detected</span>
+        </div>
+        <div id="alert-high-msgs" class="text-xs text-red-700 space-y-1 leading-relaxed"></div>
+      </div>
+
+      <!-- Alert: MEDIUM -->
+      <div id="alert-medium-box" class="hidden fade-in alert-medium">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="text-sm font-bold text-amber-700">⚠ Caution</span>
+        </div>
+        <div id="alert-medium-msgs" class="text-xs text-amber-700 space-y-1 leading-relaxed"></div>
+      </div>
+
+      <!-- OK -->
+      <div id="alert-ok-box" class="hidden fade-in alert-ok">
+        <div class="flex items-center gap-2 text-sm font-semibold text-emerald-700">
+          <svg width="16" height="16" fill="none" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 11-5.93-9.14" stroke="#10b981" stroke-width="2" stroke-linecap="round"/><path d="M22 4L12 14.01l-3-3" stroke="#10b981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          No conflicts — safe to prescribe
+        </div>
+      </div>
+
+      <!-- Patient card -->
+      <div id="patient-card" class="hidden fade-in card">
+        <div class="flex items-center gap-3 mb-4">
+          <div id="patient-avatar" class="avatar">UN</div>
+          <div class="flex-1 min-w-0">
+            <div id="patient-name" class="font-bold text-sm text-slate-900 truncate"></div>
+            <div id="patient-meta" class="text-xs text-slate-400"></div>
+          </div>
+          <div id="returning-badge" class="hidden badge badge-amber">Returning</div>
+        </div>
+
+        <!-- Fields table -->
+        <div class="space-y-2 text-xs">
+          <div class="flex justify-between py-1.5 border-b border-slate-50">
+            <span class="text-slate-400">Doctor</span>
+            <span id="field-doctor" class="font-medium text-slate-700 text-right">—</span>
+          </div>
+          <div class="flex justify-between py-1.5 border-b border-slate-50">
+            <span class="text-slate-400">Date</span>
+            <span id="field-date" class="font-medium text-slate-700">—</span>
+          </div>
+          <div class="flex justify-between py-1.5 border-b border-slate-50">
+            <span class="text-slate-400">Diagnosis</span>
+            <span id="field-diagnosis" class="font-medium text-slate-700 text-right max-w-[60%]">—</span>
+          </div>
+          <div class="flex justify-between py-1.5 border-b border-slate-50">
+            <span class="text-slate-400">Allergies</span>
+            <span id="field-allergies" class="font-semibold text-right max-w-[60%]">—</span>
+          </div>
+          <div class="flex flex-col gap-1 py-1.5">
+            <span class="text-slate-400">Medicines</span>
+            <div id="field-medicines" class="flex flex-wrap gap-1 mt-1"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Confidence report -->
+      <div id="confidence-card" class="hidden fade-in card">
+        <div class="text-xs font-semibold text-slate-500 mb-3">AI Confidence</div>
+        <div id="confidence-bars" class="space-y-2"></div>
+      </div>
+
+      <!-- Saved confirmation -->
+      <div id="saved-row" class="hidden fade-in bg-emerald-50 border border-emerald-200 rounded-xl p-3 flex items-center gap-2">
+        <svg width="16" height="16" fill="none" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 11-5.93-9.14" stroke="#10b981" stroke-width="2" stroke-linecap="round"/><path d="M22 4L12 14.01l-3-3" stroke="#10b981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span id="saved-text" class="text-xs text-emerald-700 font-medium"></span>
+      </div>
+
+    </div>
+  </div>
+
+
+  <!-- ════════════════════════════════ -->
+  <!-- ZONE 4: AI CHATBOT             -->
+  <!-- ════════════════════════════════ -->
+  <div class="zone" style="width:22%;min-width:200px">
+    <div class="zone-header">
+      <span class="zone-title">AI Assistant</span>
+      <span class="badge badge-green">
+        <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block"></span> Gemini
+      </span>
+    </div>
+
+    <!-- Chat messages -->
+    <div id="chat-messages" class="flex-1 overflow-y-auto p-3 space-y-3">
+      <div class="chat-msg-bot">
+        Hi! Ask me anything about the selected patient's history, allergies, or medications.
+      </div>
+      <div class="text-center">
+        <span class="badge badge-slate">Search a patient first →</span>
+      </div>
+    </div>
+
+    <!-- Quick buttons -->
+    <div class="px-3 pb-2 grid grid-cols-2 gap-1.5">
+      <button onclick="askChatbot('allergies')" class="btn-ghost text-xs py-1.5">🔍 Allergies</button>
+      <button onclick="askChatbot('medications')" class="btn-ghost text-xs py-1.5">💊 Meds</button>
+      <button onclick="askChatbot('history')" class="btn-ghost text-xs py-1.5">📅 History</button>
+      <button onclick="askChatbot('interactions')" class="btn-ghost text-xs py-1.5">⚡ Interactions</button>
+    </div>
+
+    <!-- Input -->
+    <div class="px-3 pb-3 flex gap-2">
+      <input id="chat-input" class="input-field text-xs" type="text"
+        placeholder="Ask about patient…"
+        onkeydown="if(event.key==='Enter') sendChatMessage()" />
+      <button onclick="sendChatMessage()"
+        class="bg-emerald-600 text-white rounded-lg px-3 text-sm hover:bg-emerald-700 transition-colors flex-shrink-0">
+        ↑
+      </button>
+    </div>
+
+    <!-- Typing indicator -->
+    <div id="chat-typing" class="hidden px-3 pb-2">
+      <div class="chat-msg-bot inline-flex items-center gap-1 py-2 px-3">
+        <div class="typing-dot"></div>
+        <div class="typing-dot"></div>
+        <div class="typing-dot"></div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /main-layout -->
+
+
+<!-- ──────────────────────────────────── -->
+<!-- SCRIPTS                             -->
+<!-- ──────────────────────────────────── -->
+<script>
+// ── Config ──
+const API = window.location.protocol === 'file:' ? 'http://localhost:8000' : '';  // same origin; server serves this file
+let currentPatientPhone = null;
+let currentPatientData  = null;
+
+// ─────────────────────────────────────
+// ZONE 1 — Patient Search
+// ─────────────────────────────────────
+
+async function searchPatient() {
+  const phone = document.getElementById('search-phone').value.trim().replace(/\s/g,'');
+  if (!phone) return;
+  const resultBox = document.getElementById('search-result');
+  resultBox.innerHTML = `<div class="text-xs text-slate-400 text-center py-3"><span class="spinner-dark"></span></div>`;
+  resultBox.classList.remove('hidden');
+
+  try {
+    const res  = await fetch(`${API}/patient/${encodeURIComponent(phone)}`);
+    const data = await res.json();
+    if (data.found) {
+      currentPatientPhone = phone;
+      currentPatientData  = data.patient;
+      renderSearchResult(data.patient);
+      renderPatientFullRecord(data.patient); // Load the full records into Zone 3!
+      updateChatbotContext(phone, data.patient);
+    } else {
+      resultBox.innerHTML = `
+        <div class="card text-center py-4">
+          <div class="text-2xl mb-2">🆕</div>
+          <p class="text-xs font-semibold text-slate-700">New patient</p>
+          <p class="text-xs text-slate-400 mt-1">No records found for ${phone}</p>
+          <p class="text-xs text-slate-400">Upload their first prescription →</p>
+        </div>`;
+      // pre-fill upload phone
+      document.getElementById('upload-phone').value = phone;
+      currentPatientPhone = phone;
+      currentPatientData  = null;
+    }
+  } catch (e) {
+    resultBox.innerHTML = `<div class="text-xs text-red-500 text-center py-3">Search failed — is the server running?</div>`;
+  }
+}
+
+function renderSearchResult(patient) {
+  const visits   = patient.visits || [];
+  const allergies= patient.known_allergies || [];
+  const lastVisit= visits.length ? visits[visits.length-1] : null;
+  const div      = document.getElementById('search-result');
+  div.innerHTML  = `
+    <div class="card fade-in">
+      <div class="flex items-center gap-2 mb-3">
+        <div class="avatar" style="width:32px;height:32px;font-size:.65rem">${initials(patient.name)}</div>
+        <div>
+          <div class="font-bold text-xs text-slate-900">${esc(patient.name || 'Unknown')}</div>
+          <div class="text-[10px] text-slate-400">${esc(patient.phone)} · ${visits.length} visit${visits.length!==1?'s':''}</div>
+        </div>
+      </div>
+      ${allergies.length ? `<div class="badge badge-red mb-2">⚠ ${allergies.join(', ')}</div>` : ''}
+      ${lastVisit ? `<div class="text-[10px] text-slate-400">Last visit: ${esc(lastVisit.date||'—')}</div>` : ''}
+      <button class="btn-ghost w-full mt-3 text-xs" onclick="prefillFromPatient('${esc(patient.phone)}')">Use for upload →</button>
+    </div>`;
+  div.classList.remove('hidden');
+  document.getElementById('upload-phone').value = patient.phone;
+}
+
+function prefillFromPatient(phone) {
+  document.getElementById('upload-phone').value = phone;
+}
+
+// ─────────────────────────────────────
+// Load recent patients
+// ─────────────────────────────────────
+
+async function loadRecent() {
+  try {
+    const res  = await fetch(`${API}/recent`);
+    const data = await res.json();
+    const list = document.getElementById('recent-list');
+    const patients = data.patients || [];
+
+    document.getElementById('patient-count-badge').textContent = `${patients.length} today`;
+
+    if (!patients.length) {
+      list.innerHTML = `<div class="text-xs text-slate-300 text-center py-4">No patients yet</div>`;
+      return;
+    }
+
+    list.innerHTML = patients.map(p => `
+      <div class="recent-row" onclick="loadPatientFromRecent('${esc(p.phone)}')">
+        <div class="avatar" style="width:28px;height:28px;font-size:.6rem">${initials(p.name)}</div>
+        <div class="flex-1 min-w-0">
+          <div class="text-xs font-semibold text-slate-800 truncate">${esc(p.name)}</div>
+          <div class="text-[10px] text-slate-400 truncate">${esc(p.phone)}</div>
+        </div>
+        ${p.has_alerts ? '<span class="badge badge-red" style="font-size:.6rem">!</span>' : ''}
+      </div>`).join('');
+  } catch(e) {
+    document.getElementById('recent-list').innerHTML = `<div class="text-xs text-slate-300 text-center py-4">Server offline</div>`;
+  }
+}
+
+function loadPatientFromRecent(phone) {
+  document.getElementById('search-phone').value = phone;
+  searchPatient();
+}
+
+// ─────────────────────────────────────
+// ZONE 2 — Upload & Extract
+// ─────────────────────────────────────
+
+let selectedFile = null;
+
+function previewFile(event) {
+  selectedFile = event.target.files[0];
+  if (!selectedFile) return;
+  if (selectedFile.type.startsWith('image/')) {
+    const preview = document.getElementById('preview');
+    preview.src = URL.createObjectURL(selectedFile);
+    preview.classList.remove('hidden');
+  } else {
+    document.getElementById('preview').classList.add('hidden');
+  }
+  document.getElementById('extract-btn').disabled = false;
+  document.getElementById('drop-zone').style.borderColor = '#10b981';
+}
+
+function handleDragOver(e) { e.preventDefault(); document.getElementById('drop-zone').classList.add('drag-over'); }
+function handleDragLeave()  { document.getElementById('drop-zone').classList.remove('drag-over'); }
+function handleDrop(e) {
+  e.preventDefault();
+  document.getElementById('drop-zone').classList.remove('drag-over');
+  const f = e.dataTransfer.files[0];
+  if (!f) return;
+  selectedFile = f;
+  const dt = new DataTransfer();
+  dt.items.add(f);
+  document.getElementById('file-input').files = dt.files;
+  if (f.type.startsWith('image/')) {
+    const preview = document.getElementById('preview');
+    preview.src = URL.createObjectURL(f);
+    preview.classList.remove('hidden');
+  }
+  document.getElementById('extract-btn').disabled = false;
+  document.getElementById('drop-zone').style.borderColor = '#10b981';
+}
+
+async function processDocument() {
+  const phone = document.getElementById('upload-phone').value.trim().replace(/\s/g,'');
+  if (!phone) { showToast('Enter patient mobile number first', 'error'); return; }
+  if (!selectedFile) { showToast('Select a file first', 'error'); return; }
+
+  // Hide empty state
+  document.getElementById('empty-state').classList.add('hidden');
+
+  // Show progress
+  const btn = document.getElementById('extract-btn');
+  btn.innerHTML = `<span class="spinner"></span> Extracting…`;
+  btn.disabled  = true;
+
+  const progressWrap = document.getElementById('progress-wrap');
+  const progressBar  = document.getElementById('progress-bar');
+  const progressLabel= document.getElementById('progress-label');
+  const progressPct  = document.getElementById('progress-pct');
+  progressWrap.classList.remove('hidden');
+
+  // Simulate progress stages
+  const stages = [
+    [10, 'Uploading to Cloud Storage…'],
+    [35, 'Gemini reading the prescription…'],
+    [60, 'Extracting patient data…'],
+    [80, 'Checking drug interactions…'],
+    [95, 'Saving to MongoDB…'],
+  ];
+  let stageIdx = 0;
+  const stageTimer = setInterval(() => {
+    if (stageIdx < stages.length) {
+      const [pct, label] = stages[stageIdx++];
+      progressBar.style.width = pct + '%';
+      progressLabel.textContent = label;
+      progressPct.textContent   = pct + '%';
+    }
+  }, 900);
+
+  try {
+    const formData = new FormData();
+    formData.append('phone', phone);
+    formData.append('file', selectedFile);
+
+    const res = await fetch(`${API}/process`, { method: 'POST', body: formData });
+    const result = await res.json();
+
+    clearInterval(stageTimer);
+    progressBar.style.width = '100%';
+    progressLabel.textContent = 'Done!';
+    progressPct.textContent = '100%';
+    setTimeout(() => progressWrap.classList.add('hidden'), 1200);
+
+    currentPatientPhone = phone;
+    renderResult(result);
+    // Load dynamic doctor profile
+    const loggedDoc = localStorage.getItem('docId') || 'DR_DEMO_001';
+    const loggedHosp = localStorage.getItem('hospId') || 'HSP_MUMBAI_001';
+    document.getElementById('doctor-info-header').textContent = `Dr. Sharma (${loggedDoc}) · Mumbai Clinic (${loggedHosp})`;
+    loadRecent();
+  } catch(e) {
+    clearInterval(stageTimer);
+    progressWrap.classList.add('hidden');
+    showToast('Processing failed — is the server running?', 'error');
+  } finally {
+    btn.innerHTML = `<svg width="14" height="14" fill="none" viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg> Extract & Save to Records`;
+    btn.disabled = false;
+  }
+}
+
+// ─────────────────────────────────────
+// ZONE 3 — Render Result
+// ─────────────────────────────────────
+
+function renderResult(result) {
+  const p       = result.patient || {};
+  const alerts  = result.alerts  || [];
+  const highAlerts   = alerts.filter(a => a.severity === 'HIGH');
+  const medAlerts    = alerts.filter(a => a.severity === 'MEDIUM');
+  const hasHighAlert = highAlerts.length > 0;
+
+  // Update header badge
+  if (alerts.length) {
+    document.getElementById('alert-header-badge').classList.remove('hidden');
+    document.getElementById('alert-count-text').textContent = `${alerts.length} alert${alerts.length!==1?'s':''}`;
+  } else {
+    document.getElementById('alert-header-badge').classList.add('hidden');
+  }
+
+  // Workflow status badge
+  const wsBadge = document.getElementById('workflow-status');
+  if (result.workflow_status) {
+    wsBadge.classList.remove('hidden');
+    wsBadge.className = `badge ${result.workflow_status === 'COMPLETED' ? 'badge-green' : 'badge-amber'}`;
+    wsBadge.textContent = result.workflow_status;
+  }
+
+  // ── Alert boxes ──
+  ['alert-high-box','alert-medium-box','alert-ok-box'].forEach(id => document.getElementById(id).classList.add('hidden'));
+
+  if (highAlerts.length) {
+    const box = document.getElementById('alert-high-box');
+    box.classList.remove('hidden');
+    document.getElementById('alert-high-msgs').innerHTML =
+      highAlerts.map(a => `<p>• ${esc(a.message)}</p>`).join('');
+  }
+  if (medAlerts.length) {
+    const box = document.getElementById('alert-medium-box');
+    box.classList.remove('hidden');
+    document.getElementById('alert-medium-msgs').innerHTML =
+      medAlerts.map(a => `<p>• ${esc(a.message)}</p>`).join('');
+  }
+  if (!alerts.length) {
+    document.getElementById('alert-ok-box').classList.remove('hidden');
+  }
+
+  // ── Patient card ──
+  const card = document.getElementById('patient-card');
+  card.classList.remove('hidden');
+
+  const nameText = p.name || 'Unknown';
+  document.getElementById('patient-avatar').textContent = initials(nameText);
+  document.getElementById('patient-name').textContent   = nameText;
+  document.getElementById('patient-meta').textContent   =
+    `${p.age || '—'} · ${p.gender || '—'} · Visit #${p.visit_count || 1}`;
+  document.getElementById('returning-badge').classList.toggle('hidden', !result.is_returning);
+  document.getElementById('field-doctor').textContent    = p.doctor   || '—';
+  document.getElementById('field-date').textContent      = p.visit_date || '—';
+  document.getElementById('field-diagnosis').textContent = (p.diagnosis||[]).join(', ') || '—';
+
+  const allergEl = document.getElementById('field-allergies');
+  allergEl.textContent = (p.known_allergies||[]).join(', ') || 'None';
+  allergEl.className = `font-semibold text-right max-w-[60%] ${hasHighAlert ? 'text-red-600' : 'text-slate-700'}`;
+
+  const medEl = document.getElementById('field-medicines');
+  medEl.innerHTML = (p.medicines||[]).map(m => {
+    const conflict = alerts.some(a => a.message && a.message.toLowerCase().includes((m.name||'').toLowerCase()));
+    return `<span class="inline-block text-[10px] px-2 py-0.5 rounded-full font-medium ${
+      conflict ? 'bg-red-100 text-red-700' : 'bg-blue-50 text-blue-700'}">${esc(m.name)}</span>`;
+  }).join('');
+
+  // ── Confidence ──
+  const conf = result.confidence;
+  if (conf && conf.scores) {
+    renderConfidence(conf);
+  }
+
+  // ── Saved row ──
+  const savedRow = document.getElementById('saved-row');
+  savedRow.classList.remove('hidden');
+  document.getElementById('saved-text').textContent =
+    `Saved to MongoDB · ID: ${(result.record_id||'—').slice(0,8)}… · Visit #${p.visit_count||1}`;
+}
+
+
+// ─────────────────────────────────────
+// ZONE 3 — Render Existing Patient Record
+// ─────────────────────────────────────
+
+function renderPatientFullRecord(patient) {
+  // Hide empty state
+  document.getElementById('empty-state').classList.add('hidden');
+  
+  // Update header workflow badge
+  const wsBadge = document.getElementById('workflow-status');
+  wsBadge.classList.remove('hidden');
+  wsBadge.className = 'badge badge-blue';
+  wsBadge.textContent = 'PATIENT FILE';
+
+  // ── Render Patient Details Card ──
+  const card = document.getElementById('patient-card');
+  card.classList.remove('hidden');
+
+  const nameText = patient.name || 'Unknown';
+  document.getElementById('patient-avatar').textContent = initials(nameText);
+  document.getElementById('patient-name').textContent   = nameText;
+  document.getElementById('patient-meta').textContent   =
+    `${patient.age || '—'} yrs · ${patient.gender || '—'} · Total ${patient.visits ? patient.visits.length : 0} visit(s)`;
+  
+  // Show returning badge
+  document.getElementById('returning-badge').classList.remove('hidden');
+
+  // Load latest visit info in fields
+  const visits = patient.visits || [];
+  const latestVisit = visits.length ? visits[visits.length - 1] : {};
+  document.getElementById('field-doctor').textContent    = latestVisit.doctor || '—';
+  document.getElementById('field-date').textContent      = latestVisit.date || '—';
+  document.getElementById('field-diagnosis').textContent = (latestVisit.diagnosis || []).join(', ') || '—';
+  
+  const allergies = patient.known_allergies || [];
+  const allergEl = document.getElementById('field-allergies');
+  allergEl.textContent = allergies.join(', ') || 'None';
+  allergEl.className = `font-semibold text-right max-w-[60%] ${allergies.length ? 'text-red-600' : 'text-slate-700'}`;
+
+  const medEl = document.getElementById('field-medicines');
+  medEl.innerHTML = (latestVisit.medicines || []).map(m => {
+    return `<span class="inline-block text-[10px] px-2 py-0.5 rounded-full font-medium bg-blue-50 text-blue-700">${esc(m.name)} ${m.dose||''}</span>`;
+  }).join('');
+
+  // ── Hide alerts / confidence cards (since this is an existing file load) ──
+  ['alert-high-box','alert-medium-box','alert-ok-box', 'confidence-card', 'saved-row'].forEach(id => document.getElementById(id).classList.add('hidden'));
+
+  // ── Render Full History & Attachments ──
+  // Check if we already have the history block, if not append it dynamically to the zone body
+  let histBlock = document.getElementById('patient-detailed-history');
+  if (!histBlock) {
+    histBlock = document.createElement('div');
+    histBlock.id = 'patient-detailed-history';
+    document.querySelector('#patient-card').parentNode.appendChild(histBlock);
+  }
+
+  // Construct gorgeous visit prescriptions
+  const visitHtml = [...visits].reverse().map((v, idx) => {
+    const meds = v.medicines || [];
+    const medsList = meds.map(m => `
+      <div class="flex justify-between items-start py-1.5 border-b border-dashed border-slate-100 text-xs">
+        <div>
+          <span class="font-bold text-slate-800">Rx: ${esc(m.name)}</span>
+          <p class="text-[10px] text-slate-400 mt-0.5">${esc(m.frequency || 'Once daily')} · ${esc(m.duration || 'As prescribed')}</p>
+        </div>
+        <span class="text-xs font-semibold text-slate-600">${esc(m.dose || '—')}</span>
+      </div>`).join('');
+
+    return `
+      <div class="bg-white border border-slate-200 rounded-xl p-4 shadow-sm mb-4">
+        <div class="flex justify-between items-center mb-3">
+          <span class="text-[10px] font-bold text-emerald-600 uppercase tracking-wider">Prescription #${visits.length - idx}</span>
+          <span class="text-[10px] text-slate-400 font-medium">${esc(v.date || '—')}</span>
+        </div>
+        <div class="text-xs mb-3">
+          <p class="text-slate-400 font-semibold mb-1">Doctor / Center:</p>
+          <p class="text-slate-800 font-semibold">${esc(v.doctor || '—')}</p>
+        </div>
+        <div class="text-xs mb-3">
+          <p class="text-slate-400 font-semibold mb-1">Diagnosis:</p>
+          <p class="text-slate-800 font-medium">${(v.diagnosis || []).join(', ') || '—'}</p>
+        </div>
+        <div class="mt-2">
+          <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Medications</p>
+          ${medsList || '<p class="text-xs text-slate-400 italic">No medications recorded</p>'}
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  // Construct gorgeous clinical attachments
+  const attachments = patient.attachments || [];
+  const attachHtml = attachments.map(att => `
+    <div class="bg-slate-50 border border-slate-200 hover:border-blue-400 rounded-xl p-3.5 transition-colors mb-3">
+      <div class="flex justify-between items-center mb-1.5">
+        <span class="font-bold text-xs text-blue-700 flex items-center gap-1.5">
+          <svg width="12" height="12" fill="none" viewBox="0 0 24 24"><path d="M15.5 3H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2V8.5L15.5 3z" stroke="currentColor" stroke-width="2"/><path d="M15 3v5.5H21" stroke="currentColor" stroke-width="2"/></svg>
+          ${esc(att.name)}
+        </span>
+        <span class="text-[10px] text-slate-400">${esc(att.date)}</span>
+      </div>
+      <p class="text-[10px] text-slate-400 mb-1">Issuer: ${esc(att.hospital)}</p>
+      <div class="bg-white border border-slate-100 rounded-lg p-2.5 mt-1 text-[11px] text-slate-600 leading-relaxed italic">
+        "${esc(att.summary)}"
+      </div>
+    </div>
+  `).join('');
+
+  histBlock.innerHTML = `
+    <div class="mt-6">
+      <h3 class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3 pl-1">Prescription History</h3>
+      ${visitHtml}
+    </div>
+    
+    ${attachments.length ? `
+    <div class="mt-6">
+      <h3 class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3 pl-1">Clinical Reports &amp; Imaging</h3>
+      ${attachHtml}
+    </div>` : ''}
+  `;
+}
+
+function renderConfidence(conf) {
+  const scores   = conf.scores || {};
+  const lowFields= conf.low_confidence_fields || [];
+  const card = document.getElementById('confidence-card');
+  const bars = document.getElementById('confidence-bars');
+  card.classList.remove('hidden');
+
+  const scalar = ['patient_name','doctor_name','visit_date','diagnosis','allergies_mentioned'];
+  bars.innerHTML = scalar.map(field => {
+    const score = scores[field];
+    if (score === null || score === undefined) return '';
+    const pct   = Math.round((score||0) * 100);
+    const color = pct >= 80 ? '#10b981' : pct >= 60 ? '#f59e0b' : '#ef4444';
+    const label = field.replace('_',' ');
+    return `
+      <div class="flex items-center gap-2">
+        <span class="text-[10px] text-slate-400 w-20 shrink-0 capitalize truncate">${label}</span>
+        <div class="conf-bar-wrap">
+          <div class="conf-bar" style="width:${pct}%;background:${color}"></div>
+        </div>
+        <span class="text-[10px] font-semibold" style="color:${color};width:26px;text-align:right">${pct}%</span>
+      </div>`;
+  }).join('');
+}
+
+// ─────────────────────────────────────
+// Query
+// ─────────────────────────────────────
+
+async function runQuery() {
+  const q = document.getElementById('query-input').value.trim();
+  if (!q) return;
+  const box = document.getElementById('query-result');
+  box.textContent = 'Searching…';
+  box.classList.remove('hidden');
+  try {
+    const res  = await fetch(`${API}/query`, {
+      method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({query:q})
+    });
+    const data = await res.json();
+    box.textContent = data.answer;
+  } catch(e) {
+    box.textContent = 'Query failed — server offline?';
+  }
+}
+
+// ─────────────────────────────────────
+// ZONE 4 — AI Chatbot
+// ─────────────────────────────────────
+
+function updateChatbotContext(phone, patient) {
+  const msgs = document.getElementById('chat-messages');
+  const name = patient ? (patient.name || phone) : phone;
+  appendBotMsg(`Patient selected: <strong>${esc(name)}</strong> (${esc(phone)}). Ask me anything about their history.`);
+}
+
+async function sendChatMessage() {
+  const input = document.getElementById('chat-input');
+  const q     = input.value.trim();
+  if (!q) return;
+  if (!currentPatientPhone) {
+    appendBotMsg('Please search for a patient first (Zone 1 ← left).');
+    return;
+  }
+  appendUserMsg(q);
+  input.value = '';
+
+  // show typing
+  const typing = document.getElementById('chat-typing');
+  typing.classList.remove('hidden');
+  scrollChat();
+
+  try {
+    const res  = await fetch(`${API}/chat`, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ query: q, phone: currentPatientPhone }),
+    });
+    const data = await res.json();
+    typing.classList.add('hidden');
+    appendBotMsg(data.answer || 'No answer returned.');
+  } catch(e) {
+    typing.classList.add('hidden');
+    appendBotMsg('Could not reach the AI — please try again.');
+  }
+}
+
+function askChatbot(type) {
+  if (!currentPatientPhone) { appendBotMsg('Select a patient first.'); return; }
+  const queries = {
+    allergies    : `What allergies does patient ${currentPatientPhone} have?`,
+    medications  : `What medicines is patient ${currentPatientPhone} currently taking?`,
+    history      : `Show recent visit history for patient ${currentPatientPhone}`,
+    interactions : `Check for drug interactions for patient ${currentPatientPhone}`,
+  };
+  document.getElementById('chat-input').value = queries[type];
+  sendChatMessage();
+}
+
+function appendBotMsg(html) {
+  const msgs = document.getElementById('chat-messages');
+  const div  = document.createElement('div');
+  div.className   = 'chat-msg-bot fade-in';
+  div.innerHTML   = html;
+  msgs.appendChild(div);
+  scrollChat();
+}
+
+function appendUserMsg(text) {
+  const msgs = document.getElementById('chat-messages');
+  const div  = document.createElement('div');
+  div.className   = 'chat-msg-user fade-in';
+  div.textContent = text;
+  msgs.appendChild(div);
+  scrollChat();
+}
+
+function scrollChat() {
+  const msgs = document.getElementById('chat-messages');
+  msgs.scrollTop = msgs.scrollHeight;
+}
+
+// ─────────────────────────────────────
+// Utilities
+// ─────────────────────────────────────
+
+function initials(name) {
+  if (!name) return 'UN';
+  return name.trim().split(/\s+/).map(w => w[0]).join('').slice(0,2).toUpperCase();
+}
+
+function esc(str) {
+  if (!str) return '';
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function showToast(msg, type='info') {
+  const t = document.createElement('div');
+  t.className = `fixed bottom-6 right-6 z-50 fade-in text-sm font-semibold px-4 py-3 rounded-xl shadow-lg ${type==='error'?'bg-red-600 text-white':'bg-emerald-600 text-white'}`;
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 3000);
+}
+
+// ─────────────────────────────────────
+// Init
+// ─────────────────────────────────────
+// Load dynamic doctor profile
+    const loggedDoc = localStorage.getItem('docId') || 'DR_DEMO_001';
+    const loggedHosp = localStorage.getItem('hospId') || 'HSP_MUMBAI_001';
+    document.getElementById('doctor-info-header').textContent = `Dr. Sharma (${loggedDoc}) · Mumbai Clinic (${loggedHosp})`;
+    loadRecent();
+</script>
+</body>
+</html>

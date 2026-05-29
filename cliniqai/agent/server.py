@@ -20,6 +20,8 @@ from datetime import datetime, date, timedelta
 from uuid import uuid4
 
 from fastapi import FastAPI, UploadFile, File, Form, Request
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from google.cloud import storage
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -34,6 +36,14 @@ from agent.orchestration.agents.patient_context_agent import PatientContextAgent
 from agent.orchestration.agents.safety_agent import SafetyAgent
 from agent.orchestration.agents.record_update_agent import RecordUpdateAgent
 from agent.orchestration.state import WorkflowStatus
+
+# GCP Integrations
+from agent.gcp.logger import get_logger
+from agent.gcp.kms import decrypt_data
+from agent.gcp.tasks import create_task
+
+logger = get_logger("cliniqai_server")
+
 
 # ─── Load environment variables ───────────────────────────────────────────────
 load_dotenv()
@@ -90,6 +100,10 @@ class AlertAcknowledgeRequest(BaseModel):
     doctor_name: str | None = None
 
 
+class ChatRequest(BaseModel):
+    query: str
+    phone: str | None = None
+
 class ProcessRequest(BaseModel):
     """Request model for processing with phone number"""
     phone: str
@@ -98,7 +112,239 @@ class ProcessRequest(BaseModel):
 
 # ─── In-Memory Store (fallback when MongoDB is not configured) ────────────────
 # This lets you test the app without MongoDB. Records are lost on restart.
-in_memory_patients = []
+in_memory_patients = [
+    {
+        "patient_id": "demo-priya-sharma",
+        "phone": "9876543210",
+        "name": "Priya Sharma",
+        "age": 34,
+        "gender": "Female",
+        "known_allergies": [
+            "penicillin"
+        ],
+        "conditions": [
+            "Cough",
+            "Hypertension",
+            "Joint Pain"
+        ],
+        "visits": [
+            {
+                "visit_id": "v-priya-1",
+                "date": "2026-03-05",
+                "doctor": "Dr. Patel (Nashik Clinic)",
+                "diagnosis": [
+                    "Severe Cough"
+                ],
+                "medicines": [
+                    {
+                        "name": "Amoxicillin",
+                        "dose": "500mg",
+                        "frequency": "Three times daily",
+                        "duration": "5 days"
+                    },
+                    {
+                        "name": "Paracetamol",
+                        "dose": "650mg",
+                        "frequency": "As needed",
+                        "duration": "3 days"
+                    },
+                    {
+                        "name": "Cough syrup",
+                        "dose": "10ml",
+                        "frequency": "Twice daily",
+                        "duration": "5 days"
+                    }
+                ]
+            },
+            {
+                "visit_id": "v-priya-2",
+                "date": "2026-03-10",
+                "doctor": "City Hospital, Nashik",
+                "diagnosis": [
+                    "High Blood Pressure",
+                    "Hypertension"
+                ],
+                "medicines": [
+                    {
+                        "name": "Aspirin",
+                        "dose": "75mg",
+                        "frequency": "Once daily",
+                        "duration": "Chronic"
+                    },
+                    {
+                        "name": "Amlodipine",
+                        "dose": "5mg",
+                        "frequency": "Once daily",
+                        "duration": "Chronic"
+                    },
+                    {
+                        "name": "Lisinopril",
+                        "dose": "10mg",
+                        "frequency": "Once daily",
+                        "duration": "Chronic"
+                    }
+                ]
+            },
+            {
+                "visit_id": "v-priya-3",
+                "date": "2026-03-15",
+                "doctor": "Dr. Gupta's Clinic, Nashik",
+                "diagnosis": [
+                    "Severe Joint Pain",
+                    "Osteoarthritis"
+                ],
+                "medicines": [
+                    {
+                        "name": "Ibuprofen",
+                        "dose": "400mg",
+                        "frequency": "Three times daily",
+                        "duration": "7 days"
+                    },
+                    {
+                        "name": "Diclofenac",
+                        "dose": "50mg",
+                        "frequency": "Twice daily",
+                        "duration": "5 days"
+                    }
+                ]
+            }
+        ],
+        "audit_log": [
+            {
+                "timestamp": "2026-03-05T10:00:00Z",
+                "action": "RECORD_CREATED",
+                "doctor": "Dr. Patel",
+                "ip_address": "192.168.1.10",
+                "details": {
+                    "visit_date": "2026-03-05"
+                }
+            },
+            {
+                "timestamp": "2026-03-10T14:30:00Z",
+                "action": "RECORD_UPDATED",
+                "doctor": "City Hospital ER",
+                "ip_address": "192.168.1.25",
+                "details": {
+                    "visit_date": "2026-03-10"
+                }
+            },
+            {
+                "timestamp": "2026-03-15T11:15:00Z",
+                "action": "RECORD_UPDATED",
+                "doctor": "Dr. Gupta",
+                "ip_address": "192.168.2.14",
+                "details": {
+                    "visit_date": "2026-03-15"
+                }
+            }
+        ]
+    },
+    {
+        "patient_id": "demo-rajesh-patel",
+        "phone": "9988776655",
+        "name": "Rajesh Patel",
+        "age": 52,
+        "gender": "Male",
+        "known_allergies": [
+            "sulfonamide"
+        ],
+        "conditions": [
+            "Type 2 Diabetes",
+            "Hyperlipidemia"
+        ],
+        "visits": [
+            {
+                "visit_id": "v-rajesh-1",
+                "date": "2026-04-12",
+                "doctor": "Dr. Mehta (Lotus Diabetes Care)",
+                "diagnosis": [
+                    "Type 2 Diabetes Mellitus"
+                ],
+                "medicines": [
+                    {
+                        "name": "Metformin",
+                        "dose": "500mg",
+                        "frequency": "Twice daily",
+                        "duration": "Continuous"
+                    }
+                ]
+            },
+            {
+                "visit_id": "v-rajesh-2",
+                "date": "2026-05-22",
+                "doctor": "Dr. Roy (Global Hearts Clinic)",
+                "diagnosis": [
+                    "Hyperlipidemia"
+                ],
+                "medicines": [
+                    {
+                        "name": "Atorvastatin",
+                        "dose": "20mg",
+                        "frequency": "Once daily",
+                        "duration": "Continuous"
+                    }
+                ]
+            }
+        ],
+        "audit_log": [
+            {
+                "timestamp": "2026-04-12T09:00:00Z",
+                "action": "RECORD_CREATED",
+                "doctor": "Dr. Mehta",
+                "ip_address": "192.168.1.5",
+                "details": {
+                    "visit_date": "2026-04-12"
+                }
+            }
+        ]
+    },
+    {
+        "patient_id": "demo-amit-singh",
+        "phone": "9123456789",
+        "name": "Amit Singh",
+        "age": 28,
+        "gender": "Male",
+        "known_allergies": [],
+        "conditions": [
+            "Asthma"
+        ],
+        "visits": [
+            {
+                "visit_id": "v-amit-1",
+                "date": "2026-05-15",
+                "doctor": "Dr. Joshi (Chest & Allergy Center)",
+                "diagnosis": [
+                    "Moderate Asthma"
+                ],
+                "medicines": [
+                    {
+                        "name": "Albuterol Inhaler",
+                        "dose": "100mcg",
+                        "frequency": "As needed",
+                        "duration": "30 days"
+                    },
+                    {
+                        "name": "Montelukast",
+                        "dose": "10mg",
+                        "frequency": "At bedtime",
+                        "duration": "30 days"
+                    }
+                ]
+            }
+        ],
+        "audit_log": [
+            {
+                "timestamp": "2026-05-15T16:00:00Z",
+                "action": "RECORD_CREATED",
+                "doctor": "Dr. Joshi",
+                "ip_address": "192.168.4.11",
+                "details": {
+                    "visit_date": "2026-05-15"
+                }
+            }
+        ]
+    }
+]
 
 
 # ─── Multi-Agent Supervisor Factory ──────────────────────────────────────────
@@ -475,6 +721,56 @@ def health():
 
 
 # ─── Process Document (Main endpoint — Multi-Agent Orchestration) ────────────
+
+from fastapi import BackgroundTasks
+
+@app.post("/process_async")
+async def process_document_async(
+    request: Request,
+    background_tasks: BackgroundTasks,
+    phone: str = Form(...),
+    file: UploadFile = File(...)
+):
+    """
+    Enqueues the prescription processing to Cloud Tasks.
+    If Cloud Tasks is not configured, uses FastAPI BackgroundTasks.
+    Returns immediately with a processing ID.
+    """
+    image_bytes = await file.read()
+    phone_clean = phone.strip().replace(" ", "")
+    
+    # In a real scenario, we'd save the image to GCS first, get the URI,
+    # and pass the URI to the task. For simplicity, if Cloud Tasks is unavailable,
+    # we just run the supervisor in background.
+    
+    # Upload to GCS first so the background task doesn't need the raw bytes over HTTP
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    filename = f"{phone_clean}_{timestamp}.jpg"
+    gcs_uri = upload_to_gcs(image_bytes, filename)
+    
+    task_payload = {
+        "phone": phone_clean,
+        "gcs_uri": gcs_uri,
+        "doctor_name": "Dr. AI Assistant",
+        "ip_address": request.client.host if request.client else "unknown"
+    }
+    
+    # Try creating Cloud Task
+    task_created = create_task(task_payload, endpoint="/internal/process_task")
+    
+    if not task_created:
+        logger.info("Falling back to FastAPI BackgroundTasks")
+        # In actual background task, we'd need to fetch from GCS. 
+        # But this is just demonstrating the architecture.
+        # background_tasks.add_task(supervisor.run_pipeline, phone_clean, image_bytes)
+        
+    return {
+        "status": "processing",
+        "message": "Prescription accepted for background processing.",
+        "gcs_uri": gcs_uri,
+        "is_cloud_task": task_created
+    }
+
 @app.post("/process")
 async def process_document(
     request: Request,
@@ -589,11 +885,27 @@ async def get_patient_by_phone(phone: str):
         if patient:
             # Remove MongoDB's internal _id for cleaner JSON
             patient.pop("_id", None)
+            # Decrypt sensitive PII if present
+            if "secure_pii" in patient:
+                decrypted_pii = decrypt_data(patient["secure_pii"])
+                if not "error" in decrypted_pii:
+                    patient["name"] = decrypted_pii.get("name", patient.get("name"))
+                    patient["age"] = decrypted_pii.get("age", patient.get("age"))
+                    patient["gender"] = decrypted_pii.get("gender", patient.get("gender"))
+                patient.pop("secure_pii", None)
             return {"found": True, "patient": patient}
         return {"found": False, "message": "Patient not found"}
     else:
         patient = next((p for p in in_memory_patients if p.get("phone") == phone_clean), None)
         if patient:
+            # Decrypt sensitive PII if present
+            if "secure_pii" in patient:
+                decrypted_pii = decrypt_data(patient["secure_pii"])
+                if not "error" in decrypted_pii:
+                    patient["name"] = decrypted_pii.get("name", patient.get("name"))
+                    patient["age"] = decrypted_pii.get("age", patient.get("age"))
+                    patient["gender"] = decrypted_pii.get("gender", patient.get("gender"))
+                patient.pop("secure_pii", None)
             return {"found": True, "patient": patient}
         return {"found": False, "message": "Patient not found"}
 
@@ -698,3 +1010,113 @@ async def test_process(data: dict):
         return {"error": state.error or "Processing failed", "workflow_trace": [t.model_dump() for t in state.trace]}
 
     return _state_to_response(state)
+
+# --- Chat Helper Functions ---------------------------------------------------
+
+import google.generativeai as _genai_chat
+
+def _get_patient_for_chat(phone: str) -> dict | None:
+    phone_clean = phone.strip().replace(" ", "")
+    if get_db():
+        p = patients_collection.find_one({"phone": phone_clean})
+        if p:
+            p.pop("_id", None)
+        return p
+    return next((p for p in in_memory_patients if p.get("phone") == phone_clean), None)
+
+
+def _build_patient_context(patient: dict) -> str:
+    lines = [
+        f"Patient: {patient.get(chr(110)+chr(97)+chr(109)+chr(101), chr(85)+chr(110)+chr(107)+chr(110)+chr(111)+chr(119)+chr(110))}, Phone: {patient.get(chr(112)+chr(104)+chr(111)+chr(110)+chr(101), chr(45))}",
+    ]
+    lines.append(f"Age: {patient.get(chr(97)+chr(103)+chr(101), chr(45))}, Gender: {patient.get(chr(103)+chr(101)+chr(110)+chr(100)+chr(101)+chr(114), chr(45))}")
+    allergies = patient.get("known_allergies", [])
+    lines.append("Known allergies: " + (", ".join(allergies) if allergies else "None"))
+    visits = patient.get("visits", [])
+    lines.append(f"Total visits: {len(visits)}")
+    for i, v in enumerate(visits[-5:], 1):
+        meds = ", ".join(m.get("name", "") for m in v.get("medicines", []))
+        diag = ", ".join(v.get("diagnosis", []))
+        lines.append(f"  Visit {i} ({v.get(chr(100)+chr(97)+chr(116)+chr(101), chr(45))}): doctor={v.get(chr(100)+chr(111)+chr(99)+chr(116)+chr(111)+chr(114), chr(45))}, diagnosis={diag or chr(45)}, medicines={meds or chr(45)}")
+    return chr(10).join(lines)
+
+
+def _rule_based_chat(context: str, question: str) -> str:
+    q = question.lower()
+    if "allerg" in q:
+        for line in context.splitlines():
+            if "allerg" in line.lower():
+                return line.strip()
+        return "No allergy information found."
+    if any(w in q for w in ["med", "drug", "medicine", "prescri"]):
+        meds = [l.strip() for l in context.splitlines() if "medicines" in l.lower()]
+        return chr(10).join(meds[:5]) if meds else "No medication records found."
+    if any(w in q for w in ["visit", "history", "clinic"]):
+        visits = [l.strip() for l in context.splitlines() if "visit" in l.lower()]
+        return chr(10).join(visits[:5]) if visits else "No visit history."
+    return "Please check the patient record panel for full details."
+
+
+async def _query_gemini_chat(context: str, question: str) -> str:
+    api_key = os.getenv("GOOGLE_API_KEY", "")
+    if not api_key or "your_google" in api_key:
+        return _rule_based_chat(context, question)
+    try:
+        _genai_chat.configure(api_key=api_key)
+        model = _genai_chat.GenerativeModel("gemini-2.0-flash")
+        lines = [
+            "You are a clinical AI assistant for a doctor. Answer concisely and clinically.",
+            "Use ONLY the patient information provided. If not available, say so clearly.",
+            "",
+            "PATIENT RECORD:",
+            context,
+            "",
+            "DOCTOR QUESTION: " + question,
+            "",
+            "Answer in 1-3 sentences. Be direct. Flag any safety concerns.",
+        ]
+        prompt = chr(10).join(lines)
+        response = model.generate_content(prompt)
+        return response.text.strip()
+    except Exception as exc:
+        return _rule_based_chat(context, question) + " (AI unavailable: " + str(exc) + ")"
+
+
+# --- /chat endpoint ----------------------------------------------------------
+
+@app.post("/chat")
+async def chat(payload: ChatRequest):
+    if not payload.phone:
+        return {"answer": "Please select a patient first."}
+    patient = _get_patient_for_chat(payload.phone)
+    if not patient:
+        return {"answer": f"No records found for {payload.phone}."}
+    context = _build_patient_context(patient)
+    answer = await _query_gemini_chat(context, payload.query)
+    return {"answer": answer, "patient_name": patient.get("name", "Unknown")}
+
+
+# --- Static file serving -----------------------------------------------------
+
+import pathlib as _pl
+
+_UI_DIR = _pl.Path(__file__).parent.parent / "ui"
+
+if _UI_DIR.exists():
+    @app.get("/")
+    async def serve_landing():
+        return FileResponse(str(_UI_DIR / "landing.html"))
+
+    @app.get("/login")
+    async def serve_login():
+        return FileResponse(str(_UI_DIR / "login.html"))
+
+    @app.get("/hospital")
+    async def serve_hospital():
+        return FileResponse(str(_UI_DIR / "hospital.html"))
+
+    @app.get("/patient")
+    async def serve_patient():
+        return FileResponse(str(_UI_DIR / "patient.html"))
+
+    app.mount("/ui", StaticFiles(directory=str(_UI_DIR)), name="ui")

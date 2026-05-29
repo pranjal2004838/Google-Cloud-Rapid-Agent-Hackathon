@@ -19,6 +19,10 @@ from __future__ import annotations
 import asyncio
 
 from agent.orchestration.state import Alert, SafetyAssessment, WorkflowState
+from agent.gcp.pubsub import publish_alert
+from agent.gcp.logger import get_logger
+
+logger = get_logger(__name__)
 
 
 class SafetyAgent:
@@ -84,6 +88,18 @@ class SafetyAgent:
 
         has_alerts = len(alerts) > 0
         high_count = sum(1 for a in alerts if a.severity == "HIGH")
+
+        # Publish critical alerts via Pub/Sub for real-time notification
+        if has_alerts:
+            logger.info(f"SafetyAgent found {len(alerts)} alerts. Publishing to Pub/Sub.")
+            for alert in alerts:
+                if alert.severity == "HIGH":
+                    patient_id = getattr(context, 'patient_id', "unknown")
+                    publish_alert(
+                        alert_type=alert.type,
+                        message=alert.message,
+                        patient_id=str(patient_id)
+                    )
 
         state.safety_assessment = SafetyAssessment(
             has_alerts=has_alerts,

@@ -563,6 +563,277 @@ def check_drug_conflicts(
 
 ### NEW Dual-Platform Architecture (Mobile Number Driven HIE)
 
+---
+
+# PHASE 2 — Build the Web UI & Authentication (Days 6–7)
+
+## Overview: Dual-Platform HIE Architecture
+
+CliniqAI is pivoting to a **Centralized AI Health Information Exchange (HIE)** aligned with **India's Ayushman Bharat Digital Mission (ABHA)**.
+
+**Key Innovation:** Patient's mobile number = universal identifier across ALL clinics. This enables **Clinic Y to save a patient's life by flagging an allergy based on a prescription uploaded by Clinic X three months ago.**
+
+### Architecture Transformation
+
+**Before:** Single clinic dashboard for doctors to upload prescriptions.
+
+**After:** Dual-platform system with:
+- **Clinic/Provider Portal:** Write-access dashboard for doctors
+- **Patient Portal:** Read-only consumer dashboard for patients
+- **Cross-clinic data sharing** (with patient authorization via OTP)
+- **Real-time drug conflict detection** across ALL clinics
+
+---
+
+## Screen Architecture: 5 Screens Total
+
+| Screen | Purpose | User | Authentication |
+|--------|---------|------|-----------------|
+| 1. Landing | Choose role (Patient or Provider) | Both | None |
+| 2A. Clinic Login | Clinic ID + Doctor ID + Password | Doctor | 3-Factor Auth |
+| 2B. Patient Login | Mobile Number + OTP verification | Patient | SMS-Based OTP |
+| 3A. Clinic Dashboard | Upload, search, extract, alert | Doctor | JWT Token (24h) |
+| 3B. Patient Dashboard | Health timeline, medications, allergies | Patient | JWT Token (30d) |
+
+---
+
+## Design Principles
+
+- **White background, thin borders, no gradients, no shadows** — Medical-grade, professional look
+- **Red alert box must be unmissable** — Large font, red background, red border
+- **"MongoDB connected" badge in header** — Judges see the database integration
+- **Allergy conflict medicines highlighted RED** — Visual consistency
+- **Patient authorization flow visible** — OTP-based access control is clear
+
+---
+
+## Technology Stack
+
+| Component | Technology | Why |
+|-----------|-----------|-----|
+| Frontend | HTML5 + Tailwind CSS (CDN) + Vanilla JS | No build step, fast to deploy |
+| Backend | FastAPI + Python | Fast, modern, easy to use |
+| Database | MongoDB Atlas | Free tier, good for hackathon |
+| Auth | JWT + bcrypt | Simple, no external deps |
+| OTP | Random 6-digit + SMS | ABHA-aligned, simple |
+| AI | Gemini on Vertex AI | Already integrated, powerful |
+| Deployment | Google Cloud Run | Free tier, easy deployment |
+
+---
+
+## 1. AUTHENTICATION & AUTHORIZATION ARCHITECTURE
+
+### 1.1 Three-Factor Clinic Login
+
+**Why 3 factors?**
+- Clinic ID: Identifies the healthcare facility
+- Doctor ID: Identifies the individual doctor (audit trail)
+- Password: Authenticates the doctor
+
+This creates a complete audit trail: "Dr. Sharma at Dr. Sharma's Clinic added patient Ramesh Gupta on 2026-05-20 at 10:30 AM"
+
+```
+CLINIC LOGIN SCREEN
+┌─────────────────────────────────────┐
+│ CliniqAI - Healthcare Provider      │
+│                                     │
+│ Clinic ID:   [CLINIC_001________]   │
+│ Doctor ID:   [DOC_001__________]    │
+│ Password:    [**************]       │
+│                                     │
+│ [LOGIN]  [REGISTER CLINIC]          │
+│                                     │
+│ Clinic ID format: CLINIC_XXX        │
+│ Doctor ID format: DOC_XXX           │
+│                                     │
+└─────────────────────────────────────┘
+```
+
+**Backend Flow:**
+```python
+POST /api/auth/clinic-login
+{
+  "clinic_id": "CLINIC_001",
+  "doctor_id": "DOC_001",
+  "password": "secure_password"
+}
+
+VALIDATION:
+1. Find clinic in clinics collection by clinic_id
+2. Find doctor in clinic.doctors array by doctor_id
+3. Verify password_hash using bcrypt
+4. Check if doctor.is_active == true
+5. Generate JWT token (24-hour expiry)
+6. Create session record
+7. Return {token, doctor_info, clinic_info}
+```
+
+### 1.2 OTP-Based Patient Login
+
+**Why OTP?**
+- No password to remember
+- ABHA-aligned (SMS-based verification)
+- More secure for mobile-first users
+- Easier for non-tech-savvy patients
+
+```
+PATIENT LOGIN - STEP 1
+┌─────────────────────────────────────┐
+│ CliniqAI - My Health Records        │
+│                                     │
+│ Enter your mobile number:           │
+│ [+91-98765-43210____________]       │
+│                                     │
+│ [SEND OTP]  [BACK]                  │
+│                                     │
+│ We'll send a 6-digit code to your   │
+│ phone for verification.             │
+│                                     │
+└─────────────────────────────────────┘
+
+PATIENT LOGIN - STEP 2
+┌─────────────────────────────────────┐
+│ Enter OTP sent to +91-98765-43210   │
+│                                     │
+│ [____] [____] [____] [____] [____]  │
+│  [____]                             │
+│                                     │
+│ [VERIFY & LOGIN]  [RESEND OTP]      │
+│                                     │
+│ Code expires in: 4:32               │
+│                                     │
+└─────────────────────────────────────┘
+```
+
+**Backend Flow:**
+```python
+POST /api/auth/patient-send-otp
+{
+  "mobile_number": "+91-98765-43210"
+}
+
+BACKEND:
+1. Validate mobile number format
+2. Generate 6-digit OTP
+3. Store OTP + expiry (5 min) in DB
+4. Send SMS: "Your CliniqAI code is: 654321"
+5. Return {message, otp_expiry_seconds}
+
+POST /api/auth/patient-verify-otp
+{
+  "mobile_number": "+91-98765-43210",
+  "otp": "654321"
+}
+
+BACKEND:
+1. Find patient by mobile_number
+2. Verify OTP matches
+3. Check OTP not expired
+4. Mark otp_verified = true
+5. Generate JWT token (30-day expiry)
+6. Create session record
+7. Return {token, patient_info}
+```
+
+### 1.3 Cross-Clinic Access Control (OTP-Based Authorization)
+
+**Scenario: Patient moves from Clinic X to Clinic Y**
+
+```
+STEP 1: Doctor searches for patient
+┌─────────────────────────────────────┐
+│ CLINIC DASHBOARD                    │
+│                                     │
+│ Search Patient by Mobile Number:    │
+│ [+91-98765-43210____________]       │
+│ [SEARCH]                            │
+│                                     │
+└─────────────────────────────────────┘
+
+BACKEND SEARCH LOGIC:
+1. Validate JWT token
+2. Find patient by mobile_number
+3. Check if clinic_id in authorized_clinics
+   - If YES: Return full patient record
+   - If NO: Return "Access Denied - Need OTP"
+
+CASE A: PATIENT FOUND & AUTHORIZED
+✓ Patient record loaded
+✓ Full history visible
+✓ Can add new visit
+
+CASE B: PATIENT FOUND BUT NOT AUTHORIZED
+⚠️ "This patient is not registered at your clinic"
+   To access their records:
+   1. Patient must authorize this clinic
+   2. Patient will receive OTP on their phone
+   3. Patient enters OTP to grant access
+   [SEND AUTHORIZATION OTP TO PATIENT]
+
+BACKEND SENDS AUTHORIZATION OTP:
+1. Generate unique auth_token
+2. Generate OTP (different from login OTP)
+3. Store: {mobile, clinic_id, otp, token}
+4. Send SMS: "Dr. Sharma's Clinic requests access
+   to your health records. Reply with OTP: 654321"
+
+PATIENT RECEIVES SMS & AUTHORIZES:
+Option A: Reply to SMS with OTP
+Option B: Open app and verify OTP
+
+BACKEND GRANTS ACCESS:
+1. Find patient by mobile_number
+2. Verify OTP matches
+3. Add clinic to authorized_clinics array:
+   {
+     clinic_id: "CLINIC_002",
+     clinic_name: "City Hospital",
+     access_granted_date: NOW,
+     access_status: "active",
+     otp_verified: true
+   }
+4. Return "Access granted"
+
+CLINIC DASHBOARD UPDATES:
+✓ Patient record now visible
+✓ Full history from all clinics
+✓ Can add new visit
+```
+
+---
+
+## 2. MONGODB SCHEMA
+
+### Clinics Collection
+
+```javascript
+{
+  _id: ObjectId,
+  clinic_id: "CLINIC_001",
+  clinic_name: "Dr. Sharma's Clinic",
+  clinic_email: "clinic@example.com",
+  clinic_phone: "+91-9876543210",
+  clinic_address: "Mumbai, India",
+  clinic_password_hash: "bcrypt_hash",
+  clinic_registration_date: ISODate,
+  clinic_status: "active",
+  
+  doctors: [
+    {
+      doctor_id: "DOC_001",
+      doctor_name: "Dr. Sharma",
+      doctor_email: "sharma@clinic.com",
+      department: "General Physician",
+      password_hash: "bcrypt_hash",
+      is_active: true,
+      created_at: ISODate,
+      last_login: ISODate
+    }
+  ],
+  
+  created_at: ISODate,
+  up
+
 CliniqAI is pivoting to a Centralized AI Health Information Exchange (HIE). The system will use the patient's mobile number as the universal identifier across all clinics. The UI will be split into two distinct portals: one for Healthcare Providers (Clinics/Doctors) and one for Patients.
 
 
@@ -1022,6 +1293,47 @@ Three things that no competitor will have:
 
 ---
 
+
+
+---
+
+## 🏗️ Modern Production-Grade Architecture (Phase 1 + Phase 2 Updates)
+
+During the build process, we upgraded CliniqAI from a single-agent system to a highly sophisticated **Multi-Agent Orchestration Supervisor Pattern** combined with **Enterprise GCP Services** to make it fully production-ready, secure, and compliant.
+
+### 1. Multi-Agent Orchestration (Supervisor Pattern)
+CliniqAI now runs on an orchestrator composed of **1 Supervisor** and **4 Specialized Agents** cooperating on a common `WorkflowState`:
+*   **ExtractionAgent**: Specialized in reading prescription images via Gemini on Vertex AI.
+*   **PatientContextAgent**: Retrieves and aligns historical clinical context from MongoDB.
+*   **SafetyAgent**: Evaluates drug-drug conflicts and allergy risks.
+*   **RecordUpdateAgent**: Persists clean structured records into MongoDB with hash-chained audit trails.
+
+### 2. Enterprise GCP Integrations (Real-World Value)
+To elevate CliniqAI beyond a simple prototype, we integrated four core Google Cloud services adding genuine architectural value:
+1.  **Cloud Logging & Monitoring (Phase 1):** Seamlessly streams full workflow execution logs directly into Google Cloud Console. Provides observability and fast debugging of Gemini/DB failures.
+2.  **Cloud KMS (Phase 1 Security):** Encrypts patient Personal Identifiable Information (PII) like Names, Age, and Gender *before* saving to MongoDB. Returns decrypted data dynamically only to authorized sessions. Ensures healthcare compliance (HIPAA, DPDP).
+3.  **Cloud Tasks (Phase 2 Scale):** Offloads heavy prescription reading & safety checking into asynchronous background worker queues. Doctors get an instant upload acknowledgment, preventing timeouts and handling high-load peak clinical hours easily.
+4.  **Cloud Pub/Sub (Phase 2 Real-Time):** Publishes critical `HIGH` severity allergy and interaction alerts immediately. This enables real-time message distribution (WebSocket push / SMS notifications) to instantly capture the doctor's attention.
+
+---
+
+## 💡 Strategic Philosophy & Core Market Questions
+
+When presenting CliniqAI to judges or partners, you must be prepared to answer two major architectural and product questions:
+
+### Q1: "Why write on paper and upload? Isn't it a waste of time compared to direct digital entry?"
+**Answer:** It is about removing adoption friction. 
+*   **Speed:** Doctors see 30-50 patients/day. Writing a physical prescription takes 30 seconds; navigating digital fields/typing takes 2-3 minutes. Typing adds 2.5 hours of overhead daily.
+*   **Muscle Memory & Trust:** Doctors have written on paper for decades. Paper never crashes, works without power, and doesn't get hacked.
+*   **The Bridge:** CliniqAI doesn't change their workflow; it *enhances* it. We meet doctors exactly where they are (paper + phone camera) and digitize behind the scenes. **Adoption > Perfection.**
+
+### Q2: "Don't big hospitals already have digital EHR systems?"
+**Answer:** Yes, but they are built for the top 5% of the market. CliniqAI is built for the remaining 95%.
+*   **Cost:** Hospital EHRs (like Epic/Cerner) cost $300,000+/year and take 6-12 months to deploy. CliniqAI is ₹0 (free tier) and takes 5 minutes to launch.
+*   **Handwriting OCR:** Big EHRs require rigid typed input. CliniqAI reads handwritten multilingual prescriptions (Hindi/English).
+*   **Target:** Small neighborhood clinics (1-10 doctors) currently using paper registers and WhatsApp. This is a massive, completely underserved market.
+
+
 ## The 10-Day Calendar
 
 | Day | Goal | Hours Needed |
@@ -1038,6 +1350,108 @@ Three things that no competitor will have:
 | Day 10 | Record demo video, fill Devpost form, submit | 3 hrs |
 
 **Total: ~32 hours. 10 days. One submission.**
+
+---
+
+## ENHANCEMENT: AI Chatbot Assistant (Zone 4 of Clinic Dashboard)
+
+**Status:** Optional enhancement to Phase 2 UI. Adds a 4th zone to the clinic dashboard.
+
+**What it does:**
+Instead of manually searching through patient records, doctors can ask natural language questions:
+- "Does patient 9885904489 have any allergies related to paracetamol?"
+- "What medicines is this patient currently on?"
+- "Show me all visits in the last 3 months"
+- "Is there any drug interaction between Amlodipine and Simvastatin?"
+
+**Architecture Changes:**
+
+### Backend (Phase 1 Enhancement)
+
+**New Endpoint: POST /api/clinic/chat**
+
+Adds a new FastAPI endpoint that accepts natural language queries about a patient and returns AI-powered answers using Gemini.
+
+**New Functions in `agent/tools/alert_tool.py`:**
+
+- `check_allergy_to_medicine(patient_allergies, medicine_name)` — Check if patient has allergies related to a specific medicine
+- `get_drug_interactions_for_patient(patient_current_medicines, new_medicine)` — Check drug interactions for patient
+
+**New Functions in `agent/server.py`:**
+
+- `build_patient_context(patient)` — Build comprehensive context from patient data for Gemini
+- `handle_allergy_query(query, patient_data)` — Handle allergy-related queries
+- `handle_medication_query(query, patient_data)` — Handle medication-related queries
+- `handle_interaction_query(query, patient_data)` — Handle drug interaction queries
+- `query_gemini_with_patient_context(query, patient_context)` — Use Gemini to answer general queries about patient
+
+### Frontend (Phase 2 Enhancement)
+
+**Dashboard Layout: Change from 2 columns to 4 zones**
+
+Update the HTML layout to display 4 zones side-by-side instead of 2 columns:
+- Zone 1: Patient Search (w-1/4)
+- Zone 2: Upload & Extraction (w-1/4)
+- Zone 3: Alert System (w-1/4)
+- Zone 4: AI Chatbot (w-1/4) ← NEW
+
+**Zone 4: AI Chatbot HTML Structure**
+
+Add a new `<aside>` element with:
+- Chatbot header
+- Chat messages area (scrollable)
+- Quick buttons (Allergies, Medications, History, Interactions)
+- Chat input field
+- Loading indicator
+
+**JavaScript Functions:**
+
+- `sendChatMessage()` — Send query to backend and display response
+- `addChatMessage(sender, message)` — Add message to chat display
+- `askChatbot(type)` — Handle quick button clicks
+- `updateCurrentPatient(mobileNumber)` — Update chatbot when patient is selected
+- `escapeHtml(text)` — Sanitize HTML to prevent XSS
+
+**Integration Points:**
+
+1. When a patient is selected in Zone 1, call `updateCurrentPatient(mobileNumber)`
+2. When rendering patient card in Zone 2, update the chatbot context
+3. Zone 3 alerts remain unchanged
+4. Zone 4 chatbot is always ready to answer questions about the selected patient
+
+**Example Interactions:**
+
+Doctor: "Does patient 9885904489 have any allergies related to paracetamol?"
+Chatbot: "✓ No, patient does not have allergies related to paracetamol. Known allergies: Penicillin, Aspirin"
+
+Doctor: "What medicines is this patient currently on?"
+Chatbot: "Patient's current medications: - Amlodipine 5mg (1x/day) Prescribed by Dr. Sharma's Clinic on 2026-05-20 - Metformin 500mg (2x/day) Prescribed by City Hospital on 2026-04-15"
+
+**Security & Performance:**
+
+- JWT token verification on every chat request
+- Authorization check to ensure clinic can access patient
+- Input sanitization (HTML escaping)
+- Rate limiting (10 requests per minute per doctor)
+- Patient record caching (5 minutes)
+- Input debouncing (300ms)
+- Response streaming from Gemini
+
+**Implementation Effort:**
+
+- Backend: ~4 hours (endpoint + functions + Gemini integration)
+- Frontend: ~3 hours (HTML + JavaScript + styling)
+- Testing: ~2 hours (unit tests + integration tests)
+- **Total: ~9 hours**
+
+**Why This Wins:**
+
+✅ **Reduces Doctor Workload** — No manual record searching
+✅ **Improves Decision Making** — Quick access to patient information
+✅ **Enhances Safety** — Instant allergy and drug interaction checks
+✅ **Saves Time** — Natural language queries instead of clicking
+✅ **Judges' Wow Factor** — Intelligent assistant is impressive
+✅ **Real-World Value** — Solves actual doctor workflow problems
 
 ---
 
