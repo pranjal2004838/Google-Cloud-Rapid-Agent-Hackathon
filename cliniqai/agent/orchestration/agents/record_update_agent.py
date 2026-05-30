@@ -24,6 +24,7 @@ from datetime import date, datetime
 from agent.orchestration.state import WorkflowState, WriteResult
 from agent.gcp.kms import encrypt_data
 from agent.gcp.logger import get_logger
+from agent.gcp.pubsub import publish_alert
 
 logger = get_logger(__name__)
 
@@ -96,6 +97,15 @@ class RecordUpdateAgent:
             )
 
         state.write_result = result
+        
+        # Publish an audit trail event using Pub/Sub
+        if result.record_id:
+            publish_alert(
+                alert_type="AUDIT_TRAIL_UPDATE",
+                message=f"Patient record updated by {doctor_name} at {ip_address}",
+                patient_id=result.record_id
+            )
+            
         return state
 
     # ─── Private: Update Existing Patient ─────────────────────────────────────

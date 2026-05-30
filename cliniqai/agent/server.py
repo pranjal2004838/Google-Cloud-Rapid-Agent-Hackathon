@@ -73,7 +73,7 @@ def get_db():
         patients_collection = db["patients"]
         return True
     except Exception as e:
-        print(f"MongoDB connection failed: {e}")
+        logger.error(f"MongoDB connection failed: {e}")
         return False
 
 # ─── FastAPI App ──────────────────────────────────────────────────────────────

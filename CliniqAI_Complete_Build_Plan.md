@@ -1141,25 +1141,38 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Install Node.js for MongoDB MCP server
-RUN apt-get update && apt-get install -y nodejs npm
+# Install system dependencies including Node.js for MongoDB MCP server
+RUN apt-get update && apt-get install -y \
+    nodejs \
+    npm \
+    gcc \
+    libffi-dev \
+    && rm -rf /var/lib/apt/lists/*
 
-# Install MongoDB MCP server
-RUN npm install -g mongodb-mcp-server
+# Install MongoDB MCP server globally via npm
+RUN npm install -g @modelcontextprotocol/server-mongodb
 
 # Install Python dependencies
-COPY requirements.txt .
-RUN pip install -r requirements.txt
+COPY cliniqai/requirements.txt .
+# Add google-cloud-logging, google-cloud-kms, google-cloud-pubsub, google-cloud-tasks
+RUN echo "google-cloud-logging>=3.8.0" >> requirements.txt && \
+    echo "google-cloud-kms>=2.21.0" >> requirements.txt && \
+    echo "google-cloud-pubsub>=2.19.0" >> requirements.txt && \
+    echo "google-cloud-tasks>=2.15.0" >> requirements.txt && \
+    pip install --no-cache-dir -r requirements.txt
 
-# Copy code
-COPY . .
+# Copy application code
+COPY cliniqai/ ./cliniqai/
+
+# Create a non-root user for security (optional but recommended for production)
+RUN useradd -m appuser && chown -R appuser:appuser /app
+USER appuser
 
 # Expose port
 EXPOSE 8080
 
-# Start command
-CMD ["python", "-m", "uvicorn", "agent.server:app", 
-     "--host", "0.0.0.0", "--port", "8080"]
+# Start command using uvicorn
+CMD ["python", "-m", "uvicorn", "cliniqai.agent.server:app", "--host", "0.0.0.0", "--port", "8080"]
 ```
 
 **Step 11: Deploy to Cloud Run**
@@ -1179,7 +1192,8 @@ gcloud run deploy cliniqai \
   --region asia-south1 \
   --allow-unauthenticated \
   --set-env-vars MONGODB_URI="your-connection-string" \
-  --set-env-vars GOOGLE_CLOUD_PROJECT="your-project-id",GOOGLE_CLOUD_LOCATION="us-central1",GCS_UPLOAD_BUCKET="your-bucket-name"
+  --set-env-vars GOOGLE_CLOUD_PROJECT="your-project-id",GOOGLE_CLOUD_LOCATION="us-central1",GCS_UPLOAD_BUCKET="your-bucket-name" \
+  --set-env-vars KMS_KEY_RING="cliniqai-keyring",KMS_KEY_NAME="patient-data-key"
 
 # You'll get a URL like: https://cliniqai-xxxxx-el.a.run.app
 # THIS is your "hosted project URL" for the submission form
