@@ -1,28 +1,10 @@
 steps:
-  # Step 1: Build the Docker image using your Dockerfile
   - name: 'gcr.io/cloud-builders/docker'
-    args:
-      - 'build'
-      - '-t'
-      - 'asia-south1-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/cliniqai:latest'
-      - '-f'
-      - 'Dockerfile'
-      - '.'
-
-  # Step 2: Push the image to Artifact Registry
+    args: ['build', '-t', 'asia-south1-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/cliniqai:latest', '-f', 'Dockerfile', '.']
+    dir: '.'
   - name: 'gcr.io/cloud-builders/docker'
-    args:
-      - 'push'
-      - 'asia-south1-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/cliniqai:latest'
-
-  # Step 3: Deploy to Cloud Run
-  - name: 'gcr.io/cloud-builders/gke-deploy'
-    args:
-      - 'run'
-      - '--filename=.'
-      - '--image=asia-south1-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/cliniqai:latest'
-      - '--location=asia-south1'
-      - '--namespace=default'
-
+    args: ['push', 'asia-south1-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/cliniqai:latest']
 images:
   - 'asia-south1-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/cliniqai:latest'
+options:
+  logging: CLOUD_LOGGING_ONLY
