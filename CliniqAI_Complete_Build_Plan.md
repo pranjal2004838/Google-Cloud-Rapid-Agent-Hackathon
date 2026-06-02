@@ -1150,7 +1150,7 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Install MongoDB MCP server globally via npm
-RUN npm install -g @modelcontextprotocol/server-mongodb
+RUN npm install -g mongodb-mcp-server
 
 # Install Python dependencies
 COPY cliniqai/requirements.txt .
