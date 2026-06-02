@@ -1,8 +1,0 @@
-Correct MongoDB MCP server NPM package name in Dockerfile
-
-- Changed '@modelcontextprotocol/server-mongodb' to the correct published package name 'mongodb-mcp-server'.
-- Updated 'CliniqAI_Complete_Build_Plan.md' to reflect this correct package name.
-
-Generated with [Devin](https://cli.devin.ai/docs)
-
-Co-Authored-By: Devin <158243242+devin-ai-integration[bot]@users.noreply.github.com>
