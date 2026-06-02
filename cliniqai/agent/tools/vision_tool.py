@@ -34,7 +34,7 @@ def extract_from_prescription(image_bytes: bytes) -> dict:
     prompt = """
     You are a medical data extraction assistant for Indian clinics. 
     Look at this prescription or medical document carefully.
-    It might be handwritten in English or Hindi.
+    It might be handwritten in English or any of the 29 regional Indian languages (e.g., Hindi, Bengali, Telugu, Marathi, Tamil, Urdu, Gujarati, Kannada, Odia, Malayalam, Punjabi, Assamese, Maithili, etc.).
     
     Extract the following information and return ONLY a JSON object:
     {
@@ -79,7 +79,7 @@ def extract_from_prescription(image_bytes: bytes) -> dict:
     }
     
     Important:
-    1. If the document is in Hindi, translate the content to English.
+    1. If the document is in a regional Indian language, translate all extracted content to English.
     2. Return ONLY the JSON. No preamble, no explanation.
     3. Be very precise with medicine names.
     4. Confidence scores must be numbers between 0.0 and 1.0.

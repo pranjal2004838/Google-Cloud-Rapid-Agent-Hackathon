@@ -42,37 +42,50 @@
 <body>
   <div class="bg-deco"></div>
 
+  <!-- Language Selector -->
+  <div class="absolute top-4 right-6 z-50">
+    <select id="languageSelect" onchange="changeLanguage(this.value)" class="bg-white border border-gray-200 text-gray-700 text-sm rounded-lg focus:ring-emerald-500 focus:border-emerald-500 block p-2 shadow-sm font-medium">
+      <option value="en">English</option>
+      <option value="hi">हिन्दी (Hindi)</option>
+      <option value="bn">বাংলা (Bengali)</option>
+      <option value="te">తెలుగు (Telugu)</option>
+      <option value="mr">मराठी (Marathi)</option>
+      <option value="ta">தமிழ் (Tamil)</option>
+      <!-- We can easily support all 29 regional languages here -->
+    </select>
+  </div>
+
   <div class="login-card">
     <div class="demo-badge">Hackathon Demo</div>
 
     <div class="text-center mb-8">
       <div class="w-12 h-12 bg-emerald-600 rounded-xl flex items-center justify-center text-white text-xl font-bold shadow-md mx-auto mb-3">C</div>
-      <h1 class="text-2xl font-black text-slate-900">Welcome to CliniqAI</h1>
-      <p class="text-xs text-slate-500 mt-1">Unified Health Records for India</p>
+      <h1 class="text-2xl font-black text-slate-900" data-i18n="welcome">Welcome to CliniqAI</h1>
+      <p class="text-xs text-slate-500 mt-1" data-i18n="subtitle">Unified Health Records for India</p>
     </div>
 
     <!-- Toggle -->
     <div class="tab-container">
       <div id="tab-bg" class="tab-bg" style="transform: translateX(0%);"></div>
-      <div id="tab-clinic" class="tab active" onclick="setMode('clinic')">Clinic Mode</div>
-      <div id="tab-patient" class="tab" onclick="setMode('patient')">Patient Mode</div>
+      <div id="tab-clinic" class="tab active" onclick="setMode('clinic')" data-i18n="clinicMode">Clinic Mode</div>
+      <div id="tab-patient" class="tab" onclick="setMode('patient')" data-i18n="patientMode">Patient Mode</div>
     </div>
 
     <!-- Clinic Login -->
     <form id="form-clinic" onsubmit="handleClinicLogin(event)">
       <div class="form-group">
-        <label class="form-label">Doctor ID</label>
+        <label class="form-label" data-i18n="doctorID">Doctor ID</label>
         <input type="text" class="form-input" value="DR_DEMO_001" required />
       </div>
       <div class="form-group">
-        <label class="form-label">Hospital ID</label>
+        <label class="form-label" data-i18n="hospitalID">Hospital ID</label>
         <input type="text" class="form-input" value="HSP_MUMBAI_001" required />
       </div>
       <div class="form-group mb-6">
-        <label class="form-label">Password</label>
+        <label class="form-label" data-i18n="password">Password</label>
         <input type="password" class="form-input" value="demo123" required />
       </div>
-      <button type="submit" class="btn-submit">
+      <button type="submit" class="btn-submit" data-i18n="enterClinic">
         Enter Clinic Dashboard →
       </button>
     </form>
@@ -80,21 +93,22 @@
     <!-- Patient Login -->
     <form id="form-patient" class="hidden" onsubmit="handlePatientLogin(event)">
       <div class="form-group">
-        <label class="form-label">Registered Mobile Number</label>
+        <label class="form-label" data-i18n="mobileNumber">Registered Mobile Number</label>
         <input id="patient-phone" type="tel" class="form-input" value="9876543210" required />
-        <p class="text-[10px] text-slate-400 mt-1 pl-1">Use 9876543210 for the Priya Sharma demo</p>
+        <p class="text-[10px] text-slate-400 mt-1 pl-1" data-i18n="demoText">Use 9876543210 for the Priya Sharma demo</p>
       </div>
       <div class="form-group mb-6">
-        <label class="form-label">OTP</label>
+        <label class="form-label" data-i18n="otp">OTP</label>
         <input type="text" class="form-input" value="1234" required />
       </div>
-      <button type="submit" class="btn-submit" style="background:#2563eb;">
+      <button type="submit" class="btn-submit" style="background:#2563eb;" data-i18n="viewRecords">
         View My Records →
       </button>
     </form>
 
   </div>
 
+  <script src="/ui/i18n.js"></script>
   <script>
     function setMode(mode) {
       const tabBg = document.getElementById('tab-bg');
