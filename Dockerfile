@@ -25,6 +25,9 @@ RUN echo "google-cloud-logging>=3.8.0" >> requirements.txt && \
 # Copy application code
 COPY cliniqai/ ./cliniqai/
 
+# Set PYTHONPATH so Python can find the agent module
+ENV PYTHONPATH=/app/cliniqai:$PYTHONPATH
+
 # Create a non-root user for security (optional but recommended for production)
 RUN useradd -m appuser && chown -R appuser:appuser /app
 USER appuser
@@ -33,4 +36,4 @@ USER appuser
 EXPOSE 8080
 
 # Start command using uvicorn
-CMD ["python", "-m", "uvicorn", "cliniqai.agent.server:app", "--host", "0.0.0.0", "--port", "8080"]
+CMD ["python", "-m", "uvicorn", "agent.server:app", "--host", "0.0.0.0", "--port", "8080"]
