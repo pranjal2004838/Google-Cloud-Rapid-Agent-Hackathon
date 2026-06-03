@@ -26,8 +26,8 @@ from typing import Any
 _ADK_AVAILABLE = False
 
 try:
-    from google.adk import Agent, Tool
-    from google.adk.tools.mcp_tool import MCPTool
+    from google.adk import Agent
+    from google.adk.tools import FunctionTool, McpToolset
     _ADK_AVAILABLE = True
 except ImportError:
     pass
@@ -46,7 +46,7 @@ def get_adk_agent():
 
     # MongoDB MCP Tool — connects ADK agent to MongoDB via MCP protocol
     mongodb_uri = os.getenv("MONGODB_URI", "")
-    mongodb_mcp = MCPTool(
+    mongodb_mcp = McpToolset(
         server_command="npx",
         server_args=[
             "mongodb-mcp-server",
@@ -56,33 +56,17 @@ def get_adk_agent():
 
     # Vision Tool — prescription/document extraction via Gemini on Vertex AI
     from agent.tools.vision_tool import extract_from_prescription
-    vision_tool = Tool(
-        name="extract_prescription_data",
-        description=(
-            "Reads a photo of a medical document (prescription, lab report, "
-            "discharge summary) and extracts structured patient data including "
-            "medicines, diagnosis, and confidence scores."
-        ),
-        function=extract_from_prescription,
-    )
+    vision_tool = FunctionTool(func=extract_from_prescription)
 
     # Alert Tool — drug interaction and allergy checking
     from agent.tools.alert_tool import check_drug_conflicts_ai
-    alert_tool = Tool(
-        name="check_drug_conflicts",
-        description=(
-            "Checks if new medicines conflict with patient's known allergies "
-            "or current medications. Returns severity-graded alerts."
-        ),
-        function=check_drug_conflicts_ai,
-    )
+    alert_tool = FunctionTool(func=check_drug_conflicts_ai)
 
     # Build tool list
     tools = [vision_tool, alert_tool]
     if mongodb_mcp:
         tools.append(mongodb_mcp)
 
-    # The ADK Agent
     cliniqai_agent = Agent(
         name="CliniqAI",
         model="gemini-2.5-flash",
@@ -118,3 +102,18 @@ def get_adk_agent():
 def is_adk_available() -> bool:
     """Check if Google ADK is installed and available."""
     return _ADK_AVAILABLE
+
+if __name__ == "__main__":
+    print("Initializing Google ADK Agent for CliniqAI...")
+    agent = get_adk_agent()
+    if agent:
+        print(f"[OK] Successfully initialized ADK Agent: {agent.name}")
+        print(f"[OK] Model: {agent.model}")
+        print(f"[OK] Tools configured: {len(agent.tools)}")
+        for tool in agent.tools:
+            print(f"   - {tool.name}")
+        print("\nADK Agent is ready to accept events.")
+    else:
+        print("[ERROR] google-adk is not installed.")
+        print("Please install it using: pip install google-adk")
+

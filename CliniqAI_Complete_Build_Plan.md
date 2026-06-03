@@ -1281,35 +1281,7 @@ docs/
 
 ---
 
-## What Judges Will Score You On
 
-| Criterion | How CliniqAI Scores | Score |
-|---|---|---|
-| Technological Implementation | Google-native stack: Gemini on Vertex AI + ADK orchestration + Cloud Run deployment + Cloud Storage ingestion + MongoDB MCP memory/search | Very High |
-| Design | Clean HTML + Tailwind UI. Sidebar navigation, patient cards, unmissable red alert box. Looks like a real product, not a student project | Very High |
-| Potential Impact | 700,000 clinics in India. Real lives at risk from paper records. Real money saved from duplicate tests | Very High |
-| Quality of Idea | No one else will build for Indian small clinics. Unique domain, unique user, unique problem | Very High |
-
----
-
-## What Makes This Win Against 10,000 People
-
-**Most people will build:** A chatbot that answers questions about MongoDB. A code generator. A personal productivity tool.
-
-**You are building:** A system that could prevent a patient death by catching a drug conflict that a busy doctor missed at 10pm after seeing 80 patients.
-
-That story — that stakes — is something a judge remembers when they write down their scores.
-
-Three things that no competitor will have:
-1. **Real human stakes** — not productivity, but safety
-2. **India-specific context** — you can speak to this authentically from Mumbai
-3. **Multimodal Gemini use** — reading handwritten Hindi/English prescriptions with vision AI is technically impressive and visually dramatic in a demo
-
----
-
-
-
----
 
 ## 🏗️ Modern Production-Grade Architecture (Phase 1 + Phase 2 Updates)
 
@@ -1458,14 +1430,7 @@ Chatbot: "Patient's current medications: - Amlodipine 5mg (1x/day) Prescribed by
 - Testing: ~2 hours (unit tests + integration tests)
 - **Total: ~9 hours**
 
-**Why This Wins:**
 
-✅ **Reduces Doctor Workload** — No manual record searching
-✅ **Improves Decision Making** — Quick access to patient information
-✅ **Enhances Safety** — Instant allergy and drug interaction checks
-✅ **Saves Time** — Natural language queries instead of clicking
-✅ **Judges' Wow Factor** — Intelligent assistant is impressive
-✅ **Real-World Value** — Solves actual doctor workflow problems
 
 ---
 

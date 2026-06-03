@@ -15,7 +15,14 @@ const translations = {
     "uploadPrescription": "Upload Prescription",
     "recentPatients": "Recent Patients",
     "language": "Language",
-    "demoText": "Use 9876543210 for the Priya Sharma demo"
+    "demoText": "Use 9876543210 for the Priya Sharma demo",
+    "patientPortal": "Patient Portal",
+    "signOut": "Sign Out",
+    "healthSummary": "Your Health Summary",
+    "aiAssistant": "AI Health Assistant",
+    "clinicDashboard": "Clinic Dashboard",
+    "patients": "Patients",
+    "uploadExtract": "Upload & Extract"
   },
   hi: {
     "welcome": "क्लीनिक एआई में आपका स्वागत है",
@@ -33,7 +40,14 @@ const translations = {
     "uploadPrescription": "प्रिस्क्रिप्शन अपलोड करें",
     "recentPatients": "हाल के मरीज",
     "language": "भाषा",
-    "demoText": "प्रिया शर्मा डेमो के लिए 9876543210 का उपयोग करें"
+    "demoText": "प्रिया शर्मा डेमो के लिए 9876543210 का उपयोग करें",
+    "patientPortal": "रोगी पोर्टल",
+    "signOut": "लॉग आउट",
+    "healthSummary": "आपका स्वास्थ्य सारांश",
+    "aiAssistant": "एआई स्वास्थ्य सहायक",
+    "clinicDashboard": "क्लिनिक डैशबोर्ड",
+    "patients": "मरीज",
+    "uploadExtract": "अपलोड और निकालें"
   },
   bn: {
     "welcome": "CliniqAI-তে স্বাগতম",
@@ -51,7 +65,14 @@ const translations = {
     "uploadPrescription": "প্রেসক্রিপশন আপলোড করুন",
     "recentPatients": "সাম্প্রতিক রোগী",
     "language": "ভাষা",
-    "demoText": "Priya Sharma ডেমোর জন্য 9876543210 ব্যবহার করুন"
+    "demoText": "Priya Sharma ডেমোর জন্য 9876543210 ব্যবহার করুন",
+    "patientPortal": "রোগী পোর্টাল",
+    "signOut": "লগ আউট",
+    "healthSummary": "আপনার স্বাস্থ্য সারাংশ",
+    "aiAssistant": "এআই স্বাস্থ্য সহকারী",
+    "clinicDashboard": "ক্লিনিক ড্যাশবোর্ড",
+    "patients": "রোগী",
+    "uploadExtract": "আপলোড এবং এক্সট্র্যাক্ট"
   },
   te: {
     "welcome": "CliniqAI కు స్వాగతం",
@@ -69,7 +90,14 @@ const translations = {
     "uploadPrescription": "ప్రిస్క్రిప్షన్ అప్‌లోడ్ చేయండి",
     "recentPatients": "ఇటీవలి రోగులు",
     "language": "భాష",
-    "demoText": "ప్రియా శర్మ డెమో కోసం 9876543210 ఉపయోగించండి"
+    "demoText": "ప్రియా శర్మ డెమో కోసం 9876543210 ఉపయోగించండి",
+    "patientPortal": "రోగి పోర్టల్",
+    "signOut": "లాగ్ అవుట్",
+    "healthSummary": "మీ ఆరోగ్య సారాంశం",
+    "aiAssistant": "AI ఆరోగ్య అసిస్టెంట్",
+    "clinicDashboard": "క్లినిక్ డాష్‌బోర్డ్",
+    "patients": "రోగులు",
+    "uploadExtract": "అప్‌లోడ్ మరియు ఎక్స్‌ట్రాక్ట్"
   },
   mr: {
     "welcome": "CliniqAI मध्ये आपले स्वागत आहे",
@@ -87,7 +115,14 @@ const translations = {
     "uploadPrescription": "प्रिस्क्रिप्शन अपलोड करा",
     "recentPatients": "अलीकडील रुग्ण",
     "language": "भाषा",
-    "demoText": "प्रिया शर्मा डेमोसाठी 9876543210 वापरा"
+    "demoText": "प्रिया शर्मा डेमोसाठी 9876543210 वापरा",
+    "patientPortal": "रुग्ण पोर्टल",
+    "signOut": "लॉग आउट",
+    "healthSummary": "तुमचा आरोग्य सारांश",
+    "aiAssistant": "AI आरोग्य सहाय्यक",
+    "clinicDashboard": "क्लिनिक डॅशबोर्ड",
+    "patients": "रुग्ण",
+    "uploadExtract": "अपलोड आणि काढा"
   },
   ta: {
     "welcome": "CliniqAI க்கு வரவேற்கிறோம்",
@@ -105,7 +140,14 @@ const translations = {
     "uploadPrescription": "பரிந்துரை பதிவேற்றவும்",
     "recentPatients": "சமீபத்திய நோயாளிகள்",
     "language": "மொழி",
-    "demoText": "பிரியா சர்மா டெமோவுக்கு 9876543210 ஐப் பயன்படுத்தவும்"
+    "demoText": "பிரியா சர்மா டெமோவுக்கு 9876543210 ஐப் பயன்படுத்தவும்",
+    "patientPortal": "நோயாளி போர்டல்",
+    "signOut": "வெளியேறு",
+    "healthSummary": "உங்கள் சுகாதார சுருக்கம்",
+    "aiAssistant": "AI சுகாதார உதவியாளர்",
+    "clinicDashboard": "கிளினிக் டாஷ்போர்டு",
+    "patients": "நோயாளிகள்",
+    "uploadExtract": "பதிவேற்று & பிரித்தெடு"
   }
 };
 

@@ -54,10 +54,20 @@
       <div class="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white font-bold">C</div>
       <div>
         <div class="font-bold text-sm text-slate-900">CliniqAI</div>
-        <div class="text-[10px] text-slate-500 uppercase tracking-widest">Patient Portal</div>
+        <div class="text-[10px] text-slate-500 uppercase tracking-widest" data-i18n="patientPortal">Patient Portal</div>
       </div>
     </div>
-    <a href="/login" class="text-xs font-semibold text-slate-500 hover:text-slate-800">Sign Out</a>
+    <div class="flex items-center gap-4">
+      <select id="languageSelect" onchange="changeLanguage(this.value)" class="bg-slate-50 border border-slate-200 text-slate-700 text-xs rounded focus:ring-blue-500 focus:border-blue-500 p-1 font-medium">
+        <option value="en">English</option>
+        <option value="hi">हिन्दी</option>
+        <option value="bn">বাংলা</option>
+        <option value="te">తెలుగు</option>
+        <option value="mr">मराठी</option>
+        <option value="ta">தமிழ்</option>
+      </select>
+      <a href="/login" class="text-xs font-semibold text-slate-500 hover:text-slate-800" data-i18n="signOut">Sign Out</a>
+    </div>
   </header>
 
   <div class="container">
@@ -70,7 +80,7 @@
         <h1 class="text-2xl font-black text-slate-900 mb-6">Hello, <span id="p-name" class="text-blue-600"></span></h1>
         
         <div class="card bg-blue-50/50 border-blue-100">
-          <h2 class="text-xs font-bold text-blue-800 uppercase tracking-widest mb-4">Your Health Summary</h2>
+          <h2 class="text-xs font-bold text-blue-800 uppercase tracking-widest mb-4" data-i18n="healthSummary">Your Health Summary</h2>
           <div id="allergies-box" class="mb-2"></div>
           <p class="text-sm text-slate-600"><strong>Age/Gender:</strong> <span id="p-meta"></span></p>
           <p class="text-sm text-slate-600"><strong>Conditions:</strong> <span id="p-conditions"></span></p>
@@ -87,7 +97,7 @@
     <div class="chat-col">
       <div class="chat-panel">
         <div class="chat-header">
-          <span>AI Health Assistant</span>
+          <span data-i18n="aiAssistant">AI Health Assistant</span>
         </div>
         <div id="chat-messages" class="chat-body">
           <div class="chat-msg-bot">
