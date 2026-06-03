@@ -199,7 +199,9 @@ async def test_happy_path_new_patient():
     # In-memory store should have 1 patient
     assert len(store) == 1
     assert store[0]["phone"] == "9876543210"
-    assert store[0]["name"] == "Ramesh Gupta"
+    from agent.gcp.kms import decrypt_data
+    decrypted = decrypt_data(store[0]["secure_pii"])
+    assert decrypted["name"] == "Ramesh Gupta"
 
     print("  PASS: test_happy_path_new_patient")
 
@@ -469,7 +471,9 @@ async def test_extracted_override():
     assert state.status == WorkflowStatus.COMPLETED, f"Expected COMPLETED, got {state.status}; error={state.error}"
     assert state.extracted_data.patient_name == "Override Patient"
     assert len(store) == 1
-    assert store[0]["name"] == "Override Patient"
+    from agent.gcp.kms import decrypt_data
+    decrypted = decrypt_data(store[0]["secure_pii"])
+    assert decrypted["name"] == "Override Patient"
 
     print("  PASS: test_extracted_override")
 
@@ -526,15 +530,18 @@ async def run_all_tests():
     passed = 0
     failed = 0
 
+    import traceback
     for test_fn in tests:
         try:
             await test_fn()
             passed += 1
         except AssertionError as e:
-            print(f"  FAIL: {test_fn.__name__} — {e}")
+            print(f"  FAIL: {test_fn.__name__}: {e}")
+            traceback.print_exc()
             failed += 1
         except Exception as e:
-            print(f"  ERROR: {test_fn.__name__} — {type(e).__name__}: {e}")
+            print(f"  ERROR: {test_fn.__name__} ({type(e).__name__}): {e}")
+            traceback.print_exc()
             failed += 1
 
     print(f"\n{'=' * 60}")
