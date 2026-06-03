@@ -11,3 +11,4 @@ google-cloud-kms>=2.21.0
 google-cloud-pubsub>=2.19.0
 google-cloud-tasks>=2.15.0
 google-adk>=0.1.0
+google-generativeai>=0.8.0
