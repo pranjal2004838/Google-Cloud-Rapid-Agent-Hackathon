@@ -1,13 +1,64 @@
 steps:
+  # Step 1: Build the Docker image
   - name: 'gcr.io/cloud-builders/docker'
-    args: ['build', '-t', 'asia-south1-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/cliniqai:latest', '-f', 'Dockerfile', '.']
-    dir: '.'
+    args:
+      - 'build'
+      - '-t'
+      - 'asia-south1-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/cliniqai:$COMMIT_SHA'
+      - '-t'
+      - 'asia-south1-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/cliniqai:latest'
+      - '-f'
+      - 'Dockerfile'
+      - '.'
+
+  # Step 2: Push the COMMIT_SHA tag to Artifact Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'asia-south1-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/cliniqai:$COMMIT_SHA']
+
+  # Step 3: Push the latest tag to Artifact Registry
   - name: 'gcr.io/cloud-builders/docker'
     args: ['push', 'asia-south1-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/cliniqai:latest']
+
+  # Step 4: Deploy to Cloud Run
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
     entrypoint: 'gcloud'
-    args: ['run', 'deploy', 'cliniqai', '--image', 'asia-south1-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/cliniqai:latest', '--region', 'asia-south1', '--allow-unauthenticated']
+    args:
+      - 'run'
+      - 'deploy'
+      - 'cliniqai'
+      - '--image'
+      - 'asia-south1-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/cliniqai:$COMMIT_SHA'
+      - '--region'
+      - 'asia-south1'
+      - '--platform'
+      - 'managed'
+      - '--memory'
+      - '512Mi'
+      - '--cpu'
+      - '1'
+      - '--timeout'
+      - '3600'
+      - '--max-instances'
+      - '20'
+      - '--allow-unauthenticated'
+      - '--set-env-vars'
+      - 'GOOGLE_API_KEY=AIzaSyAFQiu-kOL6zeV1bGd9pJAXM3VC2l4_CV4'
+      - '--set-env-vars'
+      - 'MONGODB_URI=mongodb+srv://4cp4dor_db_user:OYyOtAi1HpE01UQU@cluster0.wsiijwl.mongodb.net/cliniqai?retryWrites=true&w=majority'
+      - '--set-env-vars'
+      - 'GOOGLE_CLOUD_PROJECT=project-21005770-1368-4c5d-8ea'
+      - '--set-env-vars'
+      - 'GOOGLE_CLOUD_LOCATION=asia-south1'
+      - '--set-env-vars'
+      - 'GCS_UPLOAD_BUCKET=cliniqai-uploads-project-21005770-1368'
+      - '--set-env-vars'
+      - 'KMS_KEY_RING=cliniqai-keyring'
+      - '--set-env-vars'
+      - 'KMS_KEY_NAME=patient-data-key'
+
 images:
+  - 'asia-south1-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/cliniqai:$COMMIT_SHA'
   - 'asia-south1-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/cliniqai:latest'
+
 options:
   logging: CLOUD_LOGGING_ONLY
