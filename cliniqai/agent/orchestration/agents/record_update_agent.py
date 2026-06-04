@@ -148,9 +148,9 @@ class RecordUpdateAgent:
             existing.setdefault("audit_log", []).append(audit_event)
             record_id = existing.get("patient_id", "")
 
-        visit_count = len(existing.get("visits", [])) + (1 if self._collection else 0)
+        visit_count = len(existing.get("visits", [])) + (1 if self._collection is not None else 0)
         audit_log = existing.get("audit_log", [])
-        if self._collection:
+        if self._collection is not None:
             audit_log = audit_log + [audit_event]
 
         return WriteResult(

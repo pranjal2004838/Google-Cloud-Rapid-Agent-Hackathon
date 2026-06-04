@@ -1281,9 +1281,7 @@ async def chat(payload: ChatRequest):
                         "$each": [new_msg_user, new_msg_model],
                         "$slice": -_CHAT_HISTORY_CAP,
                     }
-                },
-                # Ensure the chat_histories map itself exists (upsert-friendly)
-                "$setOnInsert": {"chat_histories": {}},
+                }
             },
             upsert=False,
         )

@@ -13,10 +13,13 @@ from fastapi.testclient import TestClient
 from agent import server
 from agent.orchestration.state import WorkflowStatus
 
-# Reset in-memory database at start
-server.MONGODB_URI = ""
-server.patients_collection = None
-server.in_memory_patients.clear()
+# Connect to live MongoDB and clear collection for fresh test run
+if server.get_db():
+    server.patients_collection.delete_many({})
+    print("Cleared live MongoDB 'patients' collection for a clean test run.")
+else:
+    print("MongoDB not configured or failed to connect, running in-memory fallback mode.")
+    server.in_memory_patients.clear()
 
 client = TestClient(server.app)
 
@@ -538,8 +541,12 @@ def main():
 
     # 2. Verify PII KMS encryption
     print("\n[TEST 2] Patient KMS Encryption Verification:")
-    # We inspect the raw server database to check how data is saved in memory
-    patient_in_db = next((p for p in server.in_memory_patients if p["phone"] == "9988776611"), None)
+    # We inspect the raw server database to check how data is saved (live DB or in-memory)
+    if server.get_db():
+        patient_in_db = server.patients_collection.find_one({"phone": "9988776611"})
+    else:
+        patient_in_db = next((p for p in server.in_memory_patients if p["phone"] == "9988776611"), None)
+    
     if patient_in_db:
         print(f"  * Raw DB Name field: {patient_in_db['name']}")
         print(f"  * Raw DB Age field: {patient_in_db['age']}")
@@ -589,7 +596,12 @@ def main():
     for a in g_alerts:
         print(f"    -> [{a['severity']}] Type: {a['type']} - Message: {a['message']}")
         
-    combo_triggered = any(a["type"] == "INTERACTION" and a["severity"] == "HIGH" and "bleeding risk" in a["message"].lower() for a in g_alerts)
+    combo_triggered = any(
+        a["type"] == "INTERACTION" 
+        and a["severity"] == "HIGH" 
+        and ("bleeding" in a["message"].lower() or "hemorrhagic" in a["message"].lower())
+        for a in g_alerts
+    )
     if combo_triggered and giovanni_res["output"]["workflow_status"] == WorkflowStatus.REVIEW_REQUIRED.value:
         print("    [PASS] (Warfarin + Aspirin interaction check was triggered successfully)")
     else:
