@@ -1,0 +1,896 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CliniqAI — Patient Medical File</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Inter', sans-serif; background: #f8fafc; color: #0f172a; height: 100vh; overflow: hidden; }
+
+    /* ── Scrollbars ── */
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 99px; }
+    ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+    /* ── Cards / panels ── */
+    .card {
+      background: white;
+      border: 1px solid #e2e8f0;
+      border-radius: 16px;
+      padding: 16px;
+      transition: all .2s ease;
+    }
+    .card:hover { box-shadow: 0 4px 20px rgba(0,0,0,.04); }
+
+    /* ── Buttons ── */
+    .btn-primary {
+      background: #10b981;
+      color: white;
+      border: none;
+      border-radius: 10px;
+      padding: 10px 16px;
+      font-size: .82rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: background .2s, transform .15s, box-shadow .2s;
+      width: 100%;
+    }
+    .btn-primary:hover { background: #059669; transform: translateY(-1px); box-shadow: 0 6px 16px rgba(16,185,129,.2); }
+    .btn-primary:active { transform: translateY(0); }
+    .btn-primary:disabled { background: #a7f3d0; cursor: not-allowed; transform: none; box-shadow: none; }
+
+    .btn-ghost {
+      background: transparent;
+      color: #64748b;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 8px 12px;
+      font-size: .78rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all .2s;
+    }
+    .btn-ghost:hover { background: #f1f5f9; color: #0f172a; border-color: #cbd5e1; }
+
+    /* ── Input ── */
+    .input-field {
+      width: 100%;
+      border: 1.5px solid #e2e8f0;
+      border-radius: 10px;
+      padding: 9px 12px;
+      font-size: .83rem;
+      color: #0f172a;
+      background: #fafafa;
+      outline: none;
+      transition: border-color .2s, box-shadow .2s;
+      font-family: 'Inter', sans-serif;
+    }
+    .input-field:focus { border-color: #10b981; box-shadow: 0 0 0 3px rgba(16,185,129,.12); background: white; }
+
+    /* ── Drop zone ── */
+    .drop-zone {
+      border: 2px dashed #cbd5e1;
+      border-radius: 14px;
+      padding: 24px 16px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color .2s, background .2s;
+      background: #f8fafc;
+    }
+    .drop-zone:hover, .drop-zone.drag-over {
+      border-color: #10b981;
+      background: #f0fdf4;
+    }
+
+    /* ── Badges ── */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: .7rem;
+      font-weight: 600;
+      padding: 3px 8px;
+      border-radius: 999px;
+    }
+    .badge-red    { background: #fee2e2; color: #dc2626; }
+    .badge-green  { background: #d1fae5; color: #059669; }
+    .badge-blue   { background: #dbeafe; color: #2563eb; }
+    .badge-amber  { background: #fef3c7; color: #d97706; }
+    .badge-slate  { background: #f1f5f9; color: #475569; }
+
+    /* ── Alert boxes ── */
+    .alert-high { background: #fef2f2; border: 1.5px solid #fca5a5; border-radius: 12px; padding: 12px; }
+    .alert-medium { background: #fffbeb; border: 1.5px solid #fcd34d; border-radius: 12px; padding: 12px; }
+    .alert-ok { background: #f0fdf4; border: 1.5px solid #6ee7b7; border-radius: 12px; padding: 12px; }
+
+    /* ── Spinner ── */
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .spinner {
+      width: 18px; height: 18px;
+      border: 2px solid rgba(255,255,255,.4);
+      border-top-color: white;
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+      display: inline-block;
+    }
+    .spinner-dark {
+      width: 18px; height: 18px;
+      border: 2px solid rgba(16,185,129,.2);
+      border-top-color: #10b981;
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+      display: inline-block;
+    }
+
+    /* ── Chat Messages ── */
+    .chat-msg-bot {
+      background: #f1f5f9;
+      border-radius: 12px 12px 12px 4px;
+      padding: 10px 12px;
+      font-size: .78rem;
+      color: #1e293b;
+      max-width: 90%;
+      line-height: 1.5;
+      align-self: flex-start;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.02);
+    }
+    .chat-msg-user {
+      background: #10b981;
+      color: white;
+      border-radius: 12px 12px 4px 12px;
+      padding: 10px 12px;
+      font-size: .78rem;
+      max-width: 90%;
+      line-height: 1.5;
+      align-self: flex-end;
+      box-shadow: 0 1px 2px rgba(16,185,129,0.15);
+    }
+
+    /* Typing indicator */
+    @keyframes typing-dot {
+      0%,80%,100% { transform: scale(0.6); opacity:.4; }
+      40%          { transform: scale(1);   opacity:1;  }
+    }
+    .typing-dot { width:6px;height:6px;border-radius:50%;background:#94a3b8;animation:typing-dot 1.2s ease-in-out infinite; }
+    .typing-dot:nth-child(2){ animation-delay:.2s; }
+    .typing-dot:nth-child(3){ animation-delay:.4s; }
+
+    /* ── Patient Avatar ── */
+    .avatar {
+      width: 44px; height: 44px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #10b981, #059669);
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: .9rem;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+
+    /* ── Confidence bar ── */
+    .conf-bar-wrap { flex:1; height: 4px; background: #e2e8f0; border-radius: 99px; overflow: hidden; }
+    .conf-bar { height: 100%; border-radius: 99px; transition: width .6s ease; }
+
+    /* ── Fade In ── */
+    @keyframes fadeIn { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }
+    .fade-in { animation: fadeIn .35s ease forwards; }
+
+    @media (max-width: 1024px) {
+      body { overflow: auto; height: auto; }
+      .main-layout { flex-direction: column !important; height: auto !important; padding: 16px !important; gap: 16px; }
+      .column-panel { width: 100% !important; height: auto !important; }
+      .chat-panel { height: 500px !important; }
+    }
+  </style>
+</head>
+<body class="flex flex-col">
+
+<!-- ──────────────────────────────────── -->
+<!-- TOP BAR                             -->
+<!-- ──────────────────────────────────── -->
+<header class="bg-white border-b border-slate-200 px-6 py-3 flex items-center justify-between shrink-0 z-50" style="height:56px">
+  <div class="flex items-center gap-3">
+    <button onclick="window.location.href='/hospital'" class="btn-ghost py-1 px-3 flex items-center gap-1.5 hover:bg-slate-100 transition-colors">
+      ← Dashboard
+    </button>
+    <span class="text-slate-200">|</span>
+    <span id="doctor-info-header" class="text-xs text-slate-500 font-medium hidden md:inline">Loading credentials...</span>
+  </div>
+
+  <div class="flex items-center gap-2">
+    <!-- Language Selector -->
+    <select id="languageSelect" onchange="changeLanguage(this.value)" class="bg-slate-50 border border-slate-200 text-slate-700 text-xs rounded focus:ring-emerald-500 focus:border-emerald-500 p-1 font-medium mr-2">
+      <option value="en">EN</option>
+      <option value="hi">HI</option>
+      <option value="bn">BN</option>
+      <option value="te">TE</option>
+      <option value="mr">MR</option>
+      <option value="ta">TA</option>
+    </select>
+    <span id="db-badge" class="badge badge-blue">
+      <span class="w-1.5 h-1.5 rounded-full bg-blue-500 inline-block animate-pulse"></span> Connecting...
+    </span>
+  </div>
+</header>
+
+<!-- ──────────────────────────────────── -->
+<!-- PATIENT METADATA HEADER BANNER      -->
+<!-- ──────────────────────────────────── -->
+<div id="patient-banner" class="bg-white border-b border-slate-200 px-6 py-4 flex flex-wrap items-center justify-between shrink-0 gap-4">
+  <div class="flex items-center gap-4">
+    <div id="patient-avatar" class="avatar">UN</div>
+    <div>
+      <div class="flex items-center gap-2.5">
+        <h1 id="patient-name" class="font-extrabold text-lg text-slate-900">—</h1>
+        <span id="returning-badge" class="badge badge-amber hidden">Returning Patient</span>
+      </div>
+      <p id="patient-meta" class="text-xs text-slate-400 mt-0.5">Loading profile...</p>
+    </div>
+  </div>
+
+  <div class="flex gap-4">
+    <div class="text-right">
+      <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Allergies</span>
+      <span id="header-allergies" class="text-xs font-bold text-slate-700">None</span>
+    </div>
+    <div class="border-l border-slate-100 pl-4 text-right">
+      <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Diagnosis History</span>
+      <span id="header-conditions" class="text-xs font-semibold text-slate-700">None</span>
+    </div>
+  </div>
+</div>
+
+<!-- ──────────────────────────────────── -->
+<!-- MAIN DETAILED FILE LAYOUT           -->
+<!-- ──────────────────────────────────── -->
+<div class="main-layout flex flex-1 overflow-hidden p-6 gap-6" style="height: calc(100vh - 128px)">
+
+  <!-- ════════════════════════════════ -->
+  <!-- COLUMN 1: PAST MEDICAL HISTORY   -->
+  <!-- ════════════════════════════════ -->
+  <div class="column-panel flex flex-col gap-4 overflow-y-auto" style="width: 42%; min-width: 320px">
+    <h2 class="text-xs font-bold text-slate-400 uppercase tracking-widest px-1">Prescriptions &amp; Visit History</h2>
+    
+    <div id="visit-timeline" class="space-y-4">
+      <div class="text-xs text-slate-400 text-center py-12"><span class="spinner-dark mr-2"></span>Loading medical history...</div>
+    </div>
+
+    <div id="attachments-section" class="hidden">
+      <h2 class="text-xs font-bold text-slate-400 uppercase tracking-widest px-1 mt-4">Clinical Reports &amp; Imaging</h2>
+      <div id="attachments-list" class="mt-2 space-y-3"></div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════ -->
+  <!-- COLUMN 2: UPLOAD & SAFETY        -->
+  <!-- ════════════════════════════════ -->
+  <div class="column-panel flex flex-col gap-4 overflow-y-auto" style="width: 28%; min-width: 250px">
+    
+    <!-- Upload New Prescription Locked Card -->
+    <div class="card flex flex-col gap-4">
+      <div>
+        <h3 class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Upload New Prescription</h3>
+        <p class="text-xs text-slate-500">Locked to this patient file</p>
+      </div>
+
+      <!-- Drop zone -->
+      <div id="drop-zone" class="drop-zone flex flex-col items-center justify-center py-5" onclick="document.getElementById('file-input').click()"
+        ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event)">
+        <div class="text-3xl mb-1.5">📄</div>
+        <p class="text-xs font-semibold text-slate-700">Drop prescription file</p>
+        <p class="text-[10px] text-slate-400 mt-0.5">JPG · PNG · PDF</p>
+        <input id="file-input" type="file" accept=".jpg,.jpeg,.png,.pdf" class="hidden" onchange="previewFile(event)" />
+      </div>
+
+      <!-- Preview image -->
+      <img id="preview" class="hidden rounded-lg border border-slate-200 max-h-24 object-contain w-full" />
+
+      <!-- Action Button -->
+      <button id="extract-btn" class="btn-primary" onclick="processDocument()" disabled>
+        Extract &amp; Update History
+      </button>
+
+      <!-- Progress Indicators -->
+      <div id="progress-wrap" class="hidden">
+        <div class="flex justify-between text-xs text-slate-400 mb-1">
+          <span id="progress-label">Extracting data…</span>
+          <span id="progress-pct">0%</span>
+        </div>
+        <div class="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
+          <div id="progress-bar" class="h-full bg-emerald-500 rounded-full w-0 transition-all duration-300"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Active Safety Check Card -->
+    <div class="card flex flex-col gap-3">
+      <h3 class="text-xs font-bold text-slate-400 uppercase tracking-widest">Clinical Safety Checks</h3>
+      
+      <!-- Alert boxes -->
+      <div id="alert-high-box" class="hidden fade-in alert-high">
+        <div class="flex items-center gap-2 mb-1.5">
+          <svg width="14" height="14" fill="none" viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" stroke="#dc2626" stroke-width="2"/><path d="M12 9v4M12 17h.01" stroke="#dc2626" stroke-width="2" stroke-linecap="round"/></svg>
+          <span class="text-xs font-bold text-red-700">Drug Conflict Detected</span>
+        </div>
+        <div id="alert-high-msgs" class="text-[11px] text-red-700 space-y-1 leading-relaxed"></div>
+      </div>
+
+      <div id="alert-medium-box" class="hidden fade-in alert-medium">
+        <div class="flex items-center gap-2 mb-1.5">
+          <span class="text-xs font-bold text-amber-700">⚠ Safety Warning</span>
+        </div>
+        <div id="alert-medium-msgs" class="text-[11px] text-amber-700 space-y-1 leading-relaxed"></div>
+      </div>
+
+      <div id="alert-ok-box" class="alert-ok">
+        <div class="flex items-center gap-2 text-xs font-semibold text-emerald-700">
+          <svg width="14" height="14" fill="none" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 11-5.93-9.14" stroke="#10b981" stroke-width="2" stroke-linecap="round"/><path d="M22 4L12 14.01l-3-3" stroke="#10b981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          All clear — no conflicts found
+        </div>
+      </div>
+    </div>
+
+    <!-- Extraction Confidence Indicators (displayed post-upload) -->
+    <div id="confidence-card" class="card hidden fade-in">
+      <h3 class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">AI Confidence Scores</h3>
+      <div id="confidence-bars" class="space-y-2"></div>
+    </div>
+
+    <!-- MongoDB Saved Confirmation Log -->
+    <div id="saved-row" class="card bg-emerald-50 border border-emerald-200 hidden fade-in py-3 flex items-start gap-2">
+      <svg width="14" height="14" fill="none" viewBox="0 0 24 24" class="mt-0.5"><path d="M22 11.08V12a10 10 0 11-5.93-9.14" stroke="#10b981" stroke-width="2" stroke-linecap="round"/><path d="M22 4L12 14.01l-3-3" stroke="#10b981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <div>
+        <span class="text-xs text-emerald-800 font-semibold block">Record Synced</span>
+        <span id="saved-text" class="text-[10px] text-emerald-600 block mt-0.5 leading-normal"></span>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ════════════════════════════════ -->
+  <!-- COLUMN 3: CLINICAL AI ASSISTANT  -->
+  <!-- ════════════════════════════════ -->
+  <div class="column-panel flex flex-col card overflow-hidden chat-panel" style="width: 30%; min-width: 250px; background: white;">
+    
+    <!-- Chat Header -->
+    <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+      <div class="flex items-center gap-2">
+        <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+        <span class="font-bold text-xs text-slate-700">AI Clinical Assistant</span>
+      </div>
+      <span class="badge badge-green">Gemini AI</span>
+    </div>
+
+    <!-- Chat Messages Window -->
+    <div id="chat-messages" class="flex-1 overflow-y-auto p-1 py-3 space-y-3.5 flex flex-col bg-slate-50/50 rounded-xl my-3">
+      <div class="chat-msg-bot">
+        Hi, Doctor! Ask me anything about this patient's history, medicines, or allergies.
+      </div>
+    </div>
+
+    <!-- Quick Questions -->
+    <div class="pb-2.5 grid grid-cols-2 gap-1.5 shrink-0">
+      <button onclick="askChatbot('allergies')" class="btn-ghost text-[10px] py-1">🔍 Allergies</button>
+      <button onclick="askChatbot('medications')" class="btn-ghost text-[10px] py-1">💊 Medications</button>
+      <button onclick="askChatbot('history')" class="btn-ghost text-[10px] py-1">📅 History</button>
+      <button onclick="askChatbot('interactions')" class="btn-ghost text-[10px] py-1">⚡ Interactions</button>
+    </div>
+
+    <!-- Chat Input Area -->
+    <div class="flex gap-2 shrink-0">
+      <input id="chat-input" class="input-field text-xs py-2.5" type="text"
+        placeholder="Type question about patient..."
+        onkeydown="if(event.key==='Enter') sendChatMessage()" />
+      <button onclick="sendChatMessage()"
+        class="bg-emerald-600 text-white rounded-xl px-4 text-xs font-bold hover:bg-emerald-700 transition-colors">
+        ↑
+      </button>
+    </div>
+
+    <!-- Typing Indicator -->
+    <div id="chat-typing" class="hidden py-1.5">
+      <div class="chat-msg-bot inline-flex items-center gap-1 py-1.5 px-3 bg-slate-100">
+        <div class="typing-dot"></div>
+        <div class="typing-dot"></div>
+        <div class="typing-dot"></div>
+      </div>
+    </div>
+
+  </div>
+
+</div>
+
+
+<!-- ──────────────────────────────────── -->
+<!-- SCRIPTS                             -->
+<!-- ──────────────────────────────────── -->
+<script>
+const API = window.location.protocol === 'file:' ? 'http://localhost:8000' : '';
+const urlParams = new URLSearchParams(window.location.search);
+const phone = urlParams.get('phone');
+
+// ── Login Guard ──
+const loggedDoc  = localStorage.getItem('docId');
+const loggedHosp = localStorage.getItem('hospId');
+
+if (!loggedDoc) {
+  window.location.replace('/login');
+  throw new Error('Not authenticated');
+}
+
+if (!phone) {
+  window.location.href = '/hospital';
+}
+
+// Doctor profile setup
+let docName = 'Dr. Clinic Assistant';
+if (loggedDoc.toLowerCase().includes('sharma')) docName = 'Dr. Sharma';
+else if (loggedDoc.toLowerCase().includes('patel')) docName = 'Dr. Patel';
+else if (loggedDoc.toLowerCase().includes('demo')) docName = 'Dr. Demo Assistant';
+else {
+  let cleanName = loggedDoc.replace(/^DR_/i, '').replace(/_/g, ' ');
+  docName = 'Dr. ' + cleanName.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+}
+document.getElementById('doctor-info-header').textContent = `${docName} · ${loggedHosp || ''}`;
+
+// Verify MongoDB Connection status
+async function checkHealth() {
+  try {
+    const res = await fetch(`${API}/health`);
+    const data = await res.json();
+    const badge = document.getElementById('db-badge');
+    if (data.mongodb === 'connected') {
+      badge.className = 'badge badge-green';
+      badge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block"></span> MongoDB Connected`;
+    } else {
+      badge.className = 'badge badge-blue';
+      badge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-blue-500 inline-block animate-pulse"></span> Local Memory`;
+    }
+  } catch (e) {
+    document.getElementById('db-badge').className = 'badge badge-red';
+  }
+}
+checkHealth();
+
+// ─────────────────────────────────────
+// Load Patient Record
+// ─────────────────────────────────────
+let patientData = null;
+
+async function loadPatientDetails() {
+  try {
+    const res = await fetch(`${API}/patient/${encodeURIComponent(phone)}`);
+    const data = await res.json();
+    if (data.found) {
+      patientData = data.patient;
+      renderPatientFile(data.patient);
+      // Load THIS doctor's chat history specifically
+      const allHistories = data.patient.chat_histories || {};
+      // Backward compat: also check old flat chat_history field
+      const myHistory = allHistories[loggedDoc] || data.patient.chat_history || [];
+      renderChatHistory(myHistory);
+    } else {
+      showErrorState(`No medical records found for patient: <strong>${phone}</strong>`);
+    }
+  } catch (e) {
+    showErrorState('Error loading patient data. Is the server running?');
+  }
+}
+
+function showErrorState(msg) {
+  const layout = document.querySelector('.main-layout');
+  layout.innerHTML = `
+    <div class="w-full h-full flex flex-col items-center justify-center text-center p-12 card bg-white">
+      <div class="text-5xl mb-4">🔍</div>
+      <h2 class="text-xl font-bold text-slate-800 mb-2">Record Lookup Failed</h2>
+      <p class="text-slate-500 mb-6 max-w-md leading-relaxed">${msg}</p>
+      <button class="btn-primary w-48" onclick="window.location.href='/hospital'">← Back to Dashboard</button>
+    </div>`;
+}
+
+function renderPatientFile(patient) {
+  const visits = patient.visits || [];
+  const allergies = patient.known_allergies || [];
+  const nameText = patient.name || 'Unknown';
+
+  // 1. Banner Info
+  document.getElementById('patient-avatar').textContent = initials(nameText);
+  document.getElementById('patient-name').textContent = nameText;
+  document.getElementById('patient-meta').textContent = 
+    `${patient.age || '—'} yrs · ${patient.gender || '—'} · Phone: ${patient.phone} · Total ${visits.length} visit(s)`;
+  
+  if (visits.length > 1) {
+    document.getElementById('returning-badge').classList.remove('hidden');
+  }
+
+  // Banner Quick Stats
+  const allergEl = document.getElementById('header-allergies');
+  allergEl.textContent = allergies.join(', ') || 'None';
+  allergEl.className = `text-xs font-bold ${allergies.length ? 'text-red-600' : 'text-slate-700'}`;
+  
+  const latestVisit = visits.length ? visits[visits.length - 1] : {};
+  document.getElementById('header-conditions').textContent = 
+    (latestVisit.diagnosis || []).join(', ') || 'None recorded';
+
+  // 2. Left Column Timeline
+  const timeline = document.getElementById('visit-timeline');
+  if (!visits.length) {
+    timeline.innerHTML = `
+      <div class="card text-center py-10 text-slate-400 bg-white">
+        <div class="text-4xl mb-2">📋</div>
+        <p class="text-sm font-semibold">No visits recorded</p>
+        <p class="text-xs text-slate-300 mt-1">Upload a prescription on the right to start</p>
+      </div>`;
+    return;
+  }
+
+  // Reverse visits to show newest first
+  timeline.innerHTML = [...visits].reverse().map((v, idx) => {
+    const meds = v.medicines || [];
+    const medsList = meds.map(m => `
+      <div class="flex justify-between items-start py-1.5 border-b border-dashed border-slate-100 text-xs">
+        <div>
+          <span class="font-bold text-slate-800">Rx: ${esc(m.name)}</span>
+          <p class="text-[10px] text-slate-400 mt-0.5">${esc(m.frequency || 'Once daily')} · ${esc(m.duration || 'As prescribed')}</p>
+        </div>
+        <span class="text-xs font-semibold text-slate-600">${esc(m.dose || '—')}</span>
+      </div>`).join('');
+
+    return `
+      <div class="card bg-white shadow-sm border border-slate-200 rounded-xl p-4 fade-in">
+        <div class="flex justify-between items-center mb-3">
+          <span class="text-[10px] font-bold text-emerald-600 uppercase tracking-wider">Prescription #${visits.length - idx}</span>
+          <span class="text-[10px] text-slate-400 font-medium">${esc(v.date || '—')}</span>
+        </div>
+        <div class="grid grid-cols-2 gap-3 text-xs mb-3">
+          <div>
+            <p class="text-slate-400 font-semibold text-[10px] uppercase">Doctor</p>
+            <p class="text-slate-800 font-semibold truncate">${esc(v.doctor || '—')}</p>
+          </div>
+          <div>
+            <p class="text-slate-400 font-semibold text-[10px] uppercase">Diagnosis</p>
+            <p class="text-slate-800 font-medium truncate">${(v.diagnosis || []).join(', ') || '—'}</p>
+          </div>
+        </div>
+        <div class="mt-2.5">
+          <p class="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 border-b border-slate-50 pb-1">Medications Prescribed</p>
+          ${medsList || '<p class="text-xs text-slate-400 italic">No medications recorded</p>'}
+        </div>
+      </div>`;
+  }).join('');
+
+  // 3. Clinical Attachments
+  const attachments = patient.attachments || [];
+  if (attachments.length) {
+    document.getElementById('attachments-section').classList.remove('hidden');
+    document.getElementById('attachments-list').innerHTML = attachments.map(att => `
+      <div class="bg-slate-50 border border-slate-200 hover:border-emerald-300 rounded-xl p-3.5 transition-colors">
+        <div class="flex justify-between items-center mb-1.5">
+          <span class="font-bold text-xs text-emerald-700 flex items-center gap-1.5">
+            <svg width="12" height="12" fill="none" viewBox="0 0 24 24"><path d="M15.5 3H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2V8.5L15.5 3z" stroke="currentColor" stroke-width="2"/><path d="M15 3v5.5H21" stroke="currentColor" stroke-width="2"/></svg>
+            ${esc(att.name)}
+          </span>
+          <span class="text-[10px] text-slate-400">${esc(att.date)}</span>
+        </div>
+        <p class="text-[10px] text-slate-400 mb-1">Hospital: ${esc(att.hospital)}</p>
+        <div class="bg-white border border-slate-100 rounded-lg p-2.5 mt-1 text-[11px] text-slate-600 leading-relaxed italic">
+          "${esc(att.summary)}"
+        </div>
+      </div>`).join('');
+  }
+}
+
+// ─────────────────────────────────────
+// Upload prescription for specific patient
+// ─────────────────────────────────────
+let selectedFile = null;
+
+function previewFile(event) {
+  selectedFile = event.target.files[0];
+  if (!selectedFile) return;
+  if (selectedFile.type.startsWith('image/')) {
+    const preview = document.getElementById('preview');
+    preview.src = URL.createObjectURL(selectedFile);
+    preview.classList.remove('hidden');
+  } else {
+    document.getElementById('preview').classList.add('hidden');
+  }
+  document.getElementById('extract-btn').disabled = false;
+  document.getElementById('drop-zone').style.borderColor = '#10b981';
+}
+
+function handleDragOver(e) { e.preventDefault(); document.getElementById('drop-zone').classList.add('drag-over'); }
+function handleDragLeave()  { document.getElementById('drop-zone').classList.remove('drag-over'); }
+function handleDrop(e) {
+  e.preventDefault();
+  document.getElementById('drop-zone').classList.remove('drag-over');
+  const f = e.dataTransfer.files[0];
+  if (!f) return;
+  selectedFile = f;
+  const dt = new DataTransfer();
+  dt.items.add(f);
+  document.getElementById('file-input').files = dt.files;
+  if (f.type.startsWith('image/')) {
+    const preview = document.getElementById('preview');
+    preview.src = URL.createObjectURL(f);
+    preview.classList.remove('hidden');
+  }
+  document.getElementById('extract-btn').disabled = false;
+  document.getElementById('drop-zone').style.borderColor = '#10b981';
+}
+
+async function processDocument() {
+  if (!selectedFile) { showToast('Select a prescription file first', 'error'); return; }
+
+  // Show progress
+  const btn = document.getElementById('extract-btn');
+  btn.innerHTML = `<span class="spinner"></span> Extracting…`;
+  btn.disabled  = true;
+
+  const progressWrap = document.getElementById('progress-wrap');
+  const progressBar  = document.getElementById('progress-bar');
+  const progressLabel= document.getElementById('progress-label');
+  const progressPct  = document.getElementById('progress-pct');
+  progressWrap.classList.remove('hidden');
+
+  // Simulate progress
+  const stages = [
+    [20, 'Uploading prescription file…'],
+    [50, 'Gemini extracting prescription data…'],
+    [75, 'Running clinical interaction safety checks…'],
+    [95, 'Updating history files…'],
+  ];
+  let stageIdx = 0;
+  const stageTimer = setInterval(() => {
+    if (stageIdx < stages.length) {
+      const [pct, label] = stages[stageIdx++];
+      progressBar.style.width = pct + '%';
+      progressLabel.textContent = label;
+      progressPct.textContent   = pct + '%';
+    }
+  }, 750);
+
+  try {
+    const formData = new FormData();
+    formData.append('phone', phone);
+    formData.append('file', selectedFile);
+
+    const res = await fetch(`${API}/process`, { method: 'POST', body: formData });
+    const result = await res.json();
+
+    clearInterval(stageTimer);
+    progressBar.style.width = '100%';
+    progressLabel.textContent = 'Updated!';
+    progressPct.textContent = '100%';
+    setTimeout(() => {
+      progressWrap.classList.add('hidden');
+      document.getElementById('preview').classList.add('hidden');
+      selectedFile = null;
+    }, 1200);
+
+    // Render extraction result and safety alerts
+    renderExtractionSafety(result);
+    
+    // Reload full record and update AI chatbot context; scroll to newest visit
+    await loadPatientDetails();
+    // Scroll visit timeline to top so doctor sees the newly added visit first
+    const timeline = document.getElementById('visit-timeline');
+    if (timeline) timeline.scrollTop = 0;
+    showToast('Prescription processed and patient history updated!', 'success');
+
+  } catch(e) {
+    clearInterval(stageTimer);
+    progressWrap.classList.add('hidden');
+    showToast('Document update failed — check server status', 'error');
+  } finally {
+    btn.innerHTML = `Extract & Update History`;
+    btn.disabled = true;
+  }
+}
+
+function renderExtractionSafety(result) {
+  const alerts = result.alerts || [];
+  const highAlerts = alerts.filter(a => a.severity === 'HIGH');
+  const medAlerts = alerts.filter(a => a.severity === 'MEDIUM');
+
+  // ── Alert boxes ──
+  ['alert-high-box','alert-medium-box','alert-ok-box'].forEach(id => document.getElementById(id).classList.add('hidden'));
+
+  if (highAlerts.length) {
+    const box = document.getElementById('alert-high-box');
+    box.classList.remove('hidden');
+    document.getElementById('alert-high-msgs').innerHTML = highAlerts.map(a => `<p>• ${esc(a.message)}</p>`).join('');
+  }
+  if (medAlerts.length) {
+    const box = document.getElementById('alert-medium-box');
+    box.classList.remove('hidden');
+    document.getElementById('alert-medium-msgs').innerHTML = medAlerts.map(a => `<p>• ${esc(a.message)}</p>`).join('');
+  }
+  if (!alerts.length) {
+    document.getElementById('alert-ok-box').classList.remove('hidden');
+  }
+
+  // ── Confidence ──
+  const conf = result.confidence;
+  if (conf && conf.scores) {
+    const bars = document.getElementById('confidence-bars');
+    document.getElementById('confidence-card').classList.remove('hidden');
+    const fields = ['patient_name','doctor_name','visit_date','diagnosis','allergies_mentioned'];
+    bars.innerHTML = fields.map(field => {
+      const score = conf.scores[field];
+      if (score === null || score === undefined) return '';
+      const pct = Math.round(score * 100);
+      const color = pct >= 80 ? '#10b981' : pct >= 60 ? '#f59e0b' : '#ef4444';
+      return `
+        <div class="flex items-center gap-2">
+          <span class="text-[10px] text-slate-400 w-20 shrink-0 capitalize truncate">${field.replace('_',' ')}</span>
+          <div class="conf-bar-wrap">
+            <div class="conf-bar" style="width:${pct}%;background:${color}"></div>
+          </div>
+          <span class="text-[10px] font-semibold" style="color:${color};width:26px;text-align:right">${pct}%</span>
+        </div>`;
+    }).join('');
+  }
+
+  // ── Saved row ──
+  const savedRow = document.getElementById('saved-row');
+  savedRow.classList.remove('hidden');
+  document.getElementById('saved-text').textContent =
+    `Record Ref: ${(result.record_id||'').slice(0,8)}…\nSaved to patient file successfully.`;
+}
+
+// ─────────────────────────────────────
+// Persistent AI Chatbot — per doctor
+// ─────────────────────────────────────
+
+/**
+ * Format a UTC ISO timestamp for display in the chat UI.
+ * — If the message is from today: "HH:MM AM/PM"
+ * — Otherwise: "May 22, 9:30 AM"
+ */
+function formatChatTs(isoStr) {
+  if (!isoStr) return '';
+  try {
+    const d = new Date(isoStr);
+    const now = new Date();
+    const isToday = d.toDateString() === now.toDateString();
+    const time = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    return isToday ? time : `${d.toLocaleDateString([], { month: 'short', day: 'numeric' })}, ${time}`;
+  } catch (e) {
+    return '';
+  }
+}
+
+function renderChatHistory(history) {
+  const msgs = document.getElementById('chat-messages');
+  msgs.innerHTML = `<div class="chat-msg-bot">Hi, ${docName}! Ask me anything about this patient’s history, medicines, or allergies.</div>`;
+
+  if (history && history.length) {
+    history.forEach(msg => {
+      if (msg.role === 'user') {
+        appendUserMsg(msg.text, msg.timestamp);
+      } else {
+        appendBotMsg(msg.text, msg.timestamp);
+      }
+    });
+  }
+}
+
+async function sendChatMessage() {
+  const input = document.getElementById('chat-input');
+  const q = input.value.trim();
+  if (!q) return;
+
+  appendUserMsg(q);
+  input.value = '';
+
+  // show typing
+  const typing = document.getElementById('chat-typing');
+  typing.classList.remove('hidden');
+  scrollChat();
+
+  try {
+    const res = await fetch(`${API}/chat`, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ query: q, phone: phone, doctor_id: loggedDoc }),
+    });
+    const data = await res.json();
+    typing.classList.add('hidden');
+    appendBotMsg(data.answer || 'No answer returned.');
+  } catch(e) {
+    typing.classList.add('hidden');
+    appendBotMsg('Could not reach the clinical AI assistant.');
+  }
+}
+
+function askChatbot(type) {
+  const queries = {
+    allergies    : `What allergies does this patient have?`,
+    medications  : `What medicines is this patient currently taking?`,
+    history      : `Provide a summary of recent visit history for this patient.`,
+    interactions : `Are there any potential drug interactions based on history?`,
+  };
+  document.getElementById('chat-input').value = queries[type];
+  sendChatMessage();
+}
+
+function appendBotMsg(text, timestamp) {
+  const msgs = document.getElementById('chat-messages');
+  const wrap = document.createElement('div');
+  wrap.className = 'flex flex-col items-start gap-0.5';
+  const div = document.createElement('div');
+  div.className = 'chat-msg-bot fade-in';
+  div.innerHTML = esc(text).replace(/\n/g, '<br/>');
+  wrap.appendChild(div);
+  if (timestamp) {
+    const ts = document.createElement('span');
+    ts.className = 'text-[9px] text-slate-400 pl-1 select-none';
+    ts.textContent = formatChatTs(timestamp);
+    wrap.appendChild(ts);
+  }
+  msgs.appendChild(wrap);
+  scrollChat();
+}
+
+function appendUserMsg(text, timestamp) {
+  const msgs = document.getElementById('chat-messages');
+  const wrap = document.createElement('div');
+  wrap.className = 'flex flex-col items-end gap-0.5';
+  const div = document.createElement('div');
+  div.className = 'chat-msg-user fade-in';
+  div.textContent = text;
+  wrap.appendChild(div);
+  if (timestamp) {
+    const ts = document.createElement('span');
+    ts.className = 'text-[9px] text-slate-400 pr-1 select-none';
+    ts.textContent = formatChatTs(timestamp);
+    wrap.appendChild(ts);
+  }
+  msgs.appendChild(wrap);
+  scrollChat();
+}
+
+function scrollChat() {
+  const msgs = document.getElementById('chat-messages');
+  msgs.scrollTop = msgs.scrollHeight;
+}
+
+// ─────────────────────────────────────
+// Utilities
+// ─────────────────────────────────────
+function initials(name) {
+  if (!name) return 'UN';
+  return name.trim().split(/\s+/).map(w => w[0]).join('').slice(0,2).toUpperCase();
+}
+
+function esc(str) {
+  if (!str) return '';
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function showToast(msg, type='info') {
+  const t = document.createElement('div');
+  t.className = `fixed bottom-6 right-6 z-50 fade-in text-sm font-semibold px-4 py-3 rounded-xl shadow-lg ${type==='error'?'bg-red-600 text-white':'bg-emerald-600 text-white'}`;
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 3000);
+}
+
+// Load patient profile on startup
+loadPatientDetails();
+</script>
+<script src="/ui/i18n.js"></script>
+</body>
+</html>
