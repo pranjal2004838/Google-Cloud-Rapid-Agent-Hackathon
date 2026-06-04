@@ -26,22 +26,21 @@ client = TestClient(server.app)
 # ─── Font Setup ──────────────────────────────────────────────────────────────
 def get_handwriting_font():
     """Download a cursive font from Google Fonts or fall back to Windows Segoe Print."""
-    font_filename = "Caveat-Regular.ttf"
+    font_filename = "MrsSaintDelafield-Regular.ttf"
     if not os.path.exists(font_filename):
-        print("Downloading Caveat font from Google Fonts for handwriting simulation...")
+        print("Downloading MrsSaintDelafield font from Google Fonts for handwriting simulation...")
         try:
-            # Corrected URL to static font folder on Google Fonts repository
-            url = "https://raw.githubusercontent.com/google/fonts/main/ofl/caveat/static/Caveat-Regular.ttf"
+            url = "https://github.com/google/fonts/raw/main/ofl/mrssaintdelafield/MrsSaintDelafield-Regular.ttf"
             urllib.request.urlretrieve(url, font_filename)
             print("Download completed successfully!")
         except Exception as e:
-            print(f"Could not download Caveat font ({e}). Trying Windows Segoe Print...")
+            print(f"Could not download MrsSaintDelafield font ({e}). Trying Windows Segoe Print...")
             
     # System font fallback chain
     win_cursive = "C:/Windows/Fonts/segoepr.ttf"  # Segoe Print
     win_comic = "C:/Windows/Fonts/comic.ttf"      # Comic Sans
     
-    candidates = [font_filename, win_cursive, win_comic]
+    candidates = [font_filename, "MrsSaintDelafield.ttf", win_cursive, win_comic]
     for c in candidates:
         if os.path.exists(c):
             return c
@@ -52,8 +51,8 @@ FONT_PATH = get_handwriting_font()
 # ─── Prescription Image Generator ────────────────────────────────────────────
 def generate_prescription_image(metadata: dict, output_path: str, language: str = "en"):
     """
-    Generate an off-white simulated paper prescription with cursive/handwritten text.
-    Handles localization of headers depending on the patient's language.
+    Generate an off-white simulated paper prescription with clean printed labels
+    and messy, scribbled doctor-style handwriting.
     """
     width, height = 750, 950
     # Cream/off-white color
@@ -66,138 +65,162 @@ def generate_prescription_image(metadata: dict, output_path: str, language: str 
         "en": {
             "title": "CITY GENERAL CLINIC",
             "reg": "Reg. ID: IN-57701-A",
-            "patient": "Patient Name",
-            "phone": "Phone",
-            "age_gender": "Age / Gender",
-            "date": "Date",
-            "diag": "Diagnosis",
+            "patient": "Patient Name:",
+            "phone": "Phone:",
+            "age_gender": "Age / Gender:",
+            "date": "Date:",
+            "diag": "Diagnosis:",
             "rx": "Rx",
             "meds": "Prescribed Medicines:",
-            "allergies": "Known Allergies",
-            "notes": "Notes",
-            "sig": "Doctor's Signature"
+            "allergies": "Known Allergies:",
+            "notes": "Notes:",
+            "sig": "Doctor Signature"
         },
         "es": {
             "title": "CLINICA GENERAL SAN JOSE",
             "reg": "Registro N: ES-34401-B",
-            "patient": "Nombre Paciente",
-            "phone": "Telefono",
-            "age_gender": "Edad / Genero",
-            "date": "Fecha",
-            "diag": "Diagnostico",
+            "patient": "Nombre Paciente:",
+            "phone": "Telefono:",
+            "age_gender": "Edad / Genero:",
+            "date": "Fecha:",
+            "diag": "Diagnostico:",
             "rx": "Rp",
             "meds": "Medicinas Recetadas:",
-            "allergies": "Alergias Conocidas",
-            "notes": "Notas",
+            "allergies": "Alergias Conocidas:",
+            "notes": "Notas:",
             "sig": "Firma del Medico"
         },
         "fr": {
             "title": "CABINET MEDICAL DE PARIS",
             "reg": "Licence N: FR-88402-C",
-            "patient": "Nom du Patient",
-            "phone": "Telephone",
-            "age_gender": "Age / Sexe",
-            "date": "Date",
-            "diag": "Diagnostic",
+            "patient": "Nom du Patient:",
+            "phone": "Telephone:",
+            "age_gender": "Age / Sexe:",
+            "date": "Date:",
+            "diag": "Diagnostic:",
             "rx": "Ordonnance",
             "meds": "Medicaments Prescrits:",
-            "allergies": "Allergies Connues",
-            "notes": "Notes",
+            "allergies": "Allergies Connues:",
+            "notes": "Notes:",
             "sig": "Signature du Medecin"
         },
         "it": {
             "title": "STUDIO MEDICO ROSSI",
             "reg": "Iscrizione N: IT-99201-D",
-            "patient": "Nome Paziente",
-            "phone": "Telefono",
-            "age_gender": "Eta / Sesso",
-            "date": "Data",
-            "diag": "Diagnosi",
+            "patient": "Nome Paziente:",
+            "phone": "Telefono:",
+            "age_gender": "Eta / Sesso:",
+            "date": "Data:",
+            "diag": "Diagnosi:",
             "rx": "Ricetta",
             "meds": "Farmaci Prescritti:",
-            "allergies": "Allergie Note",
-            "notes": "Note",
+            "allergies": "Allergie Note:",
+            "notes": "Note:",
             "sig": "Firma del Medico"
         },
         "hi": {
             "title": "CITY GENERAL CLINIC (HINDI)",
             "reg": "REG NO: IN-7789-H",
-            "patient": "Patient Name",
-            "phone": "Phone",
-            "age_gender": "Age / Gender",
-            "date": "Date",
-            "diag": "Diagnosis",
+            "patient": "Patient Name:",
+            "phone": "Phone:",
+            "age_gender": "Age / Gender:",
+            "date": "Date:",
+            "diag": "Diagnosis:",
             "rx": "Rx",
             "meds": "Medicines:",
-            "allergies": "Allergies",
-            "notes": "Notes",
+            "allergies": "Allergies:",
+            "notes": "Notes:",
             "sig": "Doctor Signature"
         }
     }
 
     lang_headers = headers.get(language, headers["en"])
 
-    # Load custom handwriting font or fall back
+    # Load clean fonts for layout
+    try:
+        font_print_title = ImageFont.truetype("C:/Windows/Fonts/arialbd.ttf", 26)
+        font_print_label = ImageFont.truetype("C:/Windows/Fonts/arialbd.ttf", 15)
+        font_print_sub = ImageFont.truetype("C:/Windows/Fonts/arial.ttf", 13)
+        font_print_rx = ImageFont.truetype("C:/Windows/Fonts/timesbd.ttf", 44)
+    except Exception:
+        font_print_title = font_print_label = font_print_sub = font_print_rx = ImageFont.load_default()
+
+    # Load messy doctor handwriting font
     try:
         if FONT_PATH:
-            font_title = ImageFont.truetype(FONT_PATH, 30)
-            font_section = ImageFont.truetype(FONT_PATH, 24)
-            font_body = ImageFont.truetype(FONT_PATH, 20)
-            font_rx = ImageFont.truetype(FONT_PATH, 42)
+            font_hw_name = ImageFont.truetype(FONT_PATH, 34)
+            font_hw_body = ImageFont.truetype(FONT_PATH, 30)
+            font_hw_sig = ImageFont.truetype(FONT_PATH, 42)
         else:
-            font_title = font_section = font_body = font_rx = ImageFont.load_default()
+            font_hw_name = font_hw_body = font_hw_sig = ImageFont.load_default()
     except Exception:
-        font_title = font_section = font_body = font_rx = ImageFont.load_default()
+        font_hw_name = font_hw_body = font_hw_sig = ImageFont.load_default()
 
-    # Draw header
-    draw.text((60, 50), lang_headers["title"], fill=(30, 40, 80), font=font_title)
-    draw.text((60, 95), f"Dr. {metadata.get('doctor_name', 'AI Doctor')}", fill=(60, 60, 90), font=font_section)
-    draw.text((60, 125), lang_headers["reg"], fill=(100, 100, 110), font=font_body)
-    draw.line([(60, 160), (width - 60, 160)], fill=(180, 180, 200), width=2)
+    # Draw header (clean printed style)
+    draw.text((60, 55), lang_headers["title"], fill=(30, 40, 80), font=font_print_title)
+    draw.text((60, 95), lang_headers["reg"], fill=(100, 100, 110), font=font_print_sub)
+    draw.line([(60, 130), (width - 60, 130)], fill=(180, 180, 200), width=2)
 
-    # Patient info
-    draw.text((60, 180), f"{lang_headers['patient']}: {metadata['patient_name']}", fill=(40, 40, 40), font=font_body)
-    draw.text((60, 215), f"{lang_headers['phone']}: {metadata['phone']}", fill=(40, 40, 40), font=font_body)
-    draw.text((60, 250), f"{lang_headers['age_gender']}: {metadata.get('patient_age')} / {metadata.get('patient_gender')}", fill=(40, 40, 40), font=font_body)
-    draw.text((width - 250, 180), f"{lang_headers['date']}: {metadata['visit_date']}", fill=(40, 40, 40), font=font_body)
-    draw.line([(60, 290), (width - 60, 290)], fill=(210, 210, 220), width=1)
+    # Patient info form layout (printed labels, doctor scribbles)
+    # Patient Name
+    draw.text((60, 150), lang_headers["patient"], fill=(80, 80, 80), font=font_print_label)
+    draw.text((180, 138), metadata["patient_name"], fill=(15, 20, 110), font=font_hw_name)
+    
+    # Phone
+    draw.text((60, 185), lang_headers["phone"], fill=(80, 80, 80), font=font_print_label)
+    draw.text((180, 173), metadata["phone"], fill=(15, 20, 110), font=font_hw_body)
+    
+    # Age/Gender
+    draw.text((60, 220), lang_headers["age_gender"], fill=(80, 80, 80), font=font_print_label)
+    draw.text((180, 208), f"{metadata.get('patient_age')} / {metadata.get('patient_gender')}", fill=(15, 20, 110), font=font_hw_body)
+    
+    # Date
+    draw.text((width - 250, 150), lang_headers["date"], fill=(80, 80, 80), font=font_print_label)
+    draw.text((width - 190, 138), metadata["visit_date"], fill=(15, 20, 110), font=font_hw_body)
+    
+    draw.line([(60, 260), (width - 60, 260)], fill=(210, 210, 220), width=1)
 
     # Rx Symbol
-    draw.text((60, 310), lang_headers["rx"], fill=(150, 20, 20), font=font_rx)
+    draw.text((60, 280), lang_headers["rx"], fill=(150, 20, 20), font=font_print_rx)
 
-    y = 380
+    # Doctor name in print
+    draw.text((width - 250, 285), f"Dr. {metadata.get('doctor_name', 'AI Doctor')}", fill=(60, 60, 90), font=font_print_label)
+
+    y = 350
     # Diagnosis
     if metadata.get("diagnosis"):
+        draw.text((60, y), lang_headers["diag"], fill=(80, 80, 80), font=font_print_label)
         diag_text = ", ".join(metadata["diagnosis"])
-        draw.text((80, y), f"{lang_headers['diag']}: {diag_text}", fill=(50, 50, 90), font=font_section)
+        draw.text((160, y - 10), diag_text, fill=(15, 20, 110), font=font_hw_body)
         y += 50
 
     # Medicines List
-    draw.text((80, y), lang_headers["meds"], fill=(30, 30, 30), font=font_section)
-    y += 40
-    for idx, med in enumerate(metadata.get("medicines", [])):
+    draw.text((60, y), lang_headers["meds"], fill=(80, 80, 80), font=font_print_label)
+    y += 30
+    for med in metadata.get("medicines", []):
         med_str = f" - {med['name']} {med['dose']} ({med['frequency']}, {med['duration']})"
-        draw.text((100, y), med_str, fill=(20, 30, 100), font=font_body)
-        y += 40
-
-    # Allergies / Notes
-    if metadata.get("allergies_mentioned"):
-        y += 20
-        alg_text = ", ".join(metadata["allergies_mentioned"])
-        draw.text((80, y), f"{lang_headers['allergies']}: {alg_text}", fill=(200, 40, 40), font=font_section)
+        draw.text((80, y - 8), med_str, fill=(15, 20, 110), font=font_hw_body)
         y += 45
 
+    # Allergies
+    if metadata.get("allergies_mentioned"):
+        draw.text((60, y), lang_headers["allergies"], fill=(180, 30, 30), font=font_print_label)
+        alg_text = ", ".join(metadata["allergies_mentioned"])
+        draw.text((190, y - 10), alg_text, fill=(180, 30, 30), font=font_hw_body)
+        y += 50
+
+    # Notes
     if metadata.get("notes"):
-        y += 10
-        draw.text((80, y), f"{lang_headers['notes']}: {metadata['notes']}", fill=(70, 70, 70), font=font_body)
+        draw.text((60, y), lang_headers["notes"], fill=(80, 80, 80), font=font_print_label)
+        draw.text((120, y - 10), metadata["notes"], fill=(50, 50, 70), font=font_hw_body)
 
     # Doctor signature line
     draw.line([(width - 250, height - 100), (width - 60, height - 100)], fill=(120, 120, 120), width=1)
-    draw.text((width - 200, height - 90), lang_headers["sig"], fill=(100, 100, 100), font=font_body)
+    draw.text((width - 210, height - 145), metadata.get("doctor_name", "AI Doctor"), fill=(15, 20, 110), font=font_hw_sig)
+    draw.text((width - 200, height - 90), lang_headers["sig"], fill=(100, 100, 100), font=font_print_sub)
 
     # Apply small rotation to make it feel scanned/hand-held
     img = img.rotate(1.2, fillcolor=bg_color)
-
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
     img.save(output_path, "JPEG")
 
