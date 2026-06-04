@@ -1187,7 +1187,7 @@ async def _query_gemini_chat(context: str, question: str, history: list = None) 
         return _rule_based_chat(context, question)
     try:
         _genai_chat.configure(api_key=api_key)
-        model = _genai_chat.GenerativeModel("gemini-2.0-flash")
+        model = _genai_chat.GenerativeModel("gemini-2.5-flash")
         
         history_lines = []
         if history:

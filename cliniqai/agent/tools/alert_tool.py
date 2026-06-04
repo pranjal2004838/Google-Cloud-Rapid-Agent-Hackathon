@@ -109,7 +109,7 @@ def check_drug_conflicts_ai(patient_allergies: list, current_medicines: list, ne
     
     # Configure Gemini
     genai.configure(api_key=GOOGLE_API_KEY)
-    model = genai.GenerativeModel('gemini-2.0-flash')
+    model = genai.GenerativeModel('gemini-2.5-flash')
     
     # Build the prompt
     current_med_names = [m.get("name", "") for m in current_medicines]

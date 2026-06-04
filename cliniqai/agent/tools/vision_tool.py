@@ -15,15 +15,18 @@ def extract_from_prescription(image_bytes: bytes) -> dict:
     Returns structured patient data as a Python dictionary.
     """
     
-    # Check if API key is configured
+    api_key = os.getenv("GOOGLE_API_KEY")
     project_id = os.getenv("GOOGLE_CLOUD_PROJECT")
     location = os.getenv("GOOGLE_CLOUD_LOCATION", "us-central1")
 
-    if not project_id or "your_project" in project_id:
-        return {"error": "GOOGLE_CLOUD_PROJECT not configured. Set it in .env file."}
-
-    # Use Gemini on Vertex AI to match the Google Cloud-native architecture.
-    client = genai.Client(vertexai=True, project=project_id, location=location)
+    if api_key and "your_google" not in api_key:
+        # Use Google AI Studio Gemini API (API key credentials)
+        client = genai.Client(api_key=api_key)
+    elif project_id and "your_project" not in project_id:
+        # Use Gemini on Vertex AI to match the Google Cloud-native architecture.
+        client = genai.Client(vertexai=True, project=project_id, location=location)
+    else:
+        return {"error": "Neither GOOGLE_API_KEY nor GOOGLE_CLOUD_PROJECT configured in .env file."}
     
     # Convert raw bytes from the web upload into an image object
     try:
