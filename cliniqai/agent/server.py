@@ -103,6 +103,7 @@ class AlertAcknowledgeRequest(BaseModel):
 class ChatRequest(BaseModel):
     query: str
     phone: str | None = None
+    doctor_id: str | None = None
 
 class ProcessRequest(BaseModel):
     """Request model for processing with phone number"""
@@ -127,6 +128,7 @@ in_memory_patients = [
             "Hypertension",
             "Joint Pain"
         ],
+        "chat_histories": {},
         "visits": [
             {
                 "visit_id": "v-priya-1",
@@ -252,6 +254,7 @@ in_memory_patients = [
             "Type 2 Diabetes",
             "Hyperlipidemia"
         ],
+        "chat_histories": {},
         "visits": [
             {
                 "visit_id": "v-rajesh-1",
@@ -308,6 +311,7 @@ in_memory_patients = [
         "conditions": [
             "Asthma"
         ],
+        "chat_histories": {},
         "visits": [
             {
                 "visit_id": "v-amit-1",
@@ -724,6 +728,81 @@ def health():
 
 from fastapi import BackgroundTasks
 
+class TaskPayload(BaseModel):
+    phone: str
+    gcs_uri: str | None = None
+    doctor_name: str | None = "Dr. AI Assistant"
+    ip_address: str | None = "unknown"
+
+def download_bytes_from_gcs(gcs_uri: str) -> bytes:
+    """Download raw bytes from a Cloud Storage URI (e.g. gs://bucket/object)."""
+    if not gcs_uri.startswith("gs://"):
+        raise ValueError("Invalid GCS URI format. Must start with gs://")
+    
+    parts = gcs_uri[5:].split("/", 1)
+    bucket_name = parts[0]
+    object_name = parts[1]
+    
+    client = storage.Client(project=GOOGLE_CLOUD_PROJECT)
+    bucket = client.bucket(bucket_name)
+    blob = bucket.blob(object_name)
+    return blob.download_as_bytes()
+
+@app.post("/internal/process_task")
+async def process_task(payload: TaskPayload):
+    """
+    Webhook handler for Cloud Tasks.
+    Downloads the image from GCS, runs the multi-agent supervisor pipeline, and returns status.
+    """
+    logger.info(f"📥 Received background task request for phone {payload.phone}")
+    
+    image_bytes = None
+    content_type = "image/jpeg"
+    gcs_upload_result = None
+    
+    if payload.gcs_uri:
+        try:
+            image_bytes = download_bytes_from_gcs(payload.gcs_uri)
+            if payload.gcs_uri.endswith(".png"):
+                content_type = "image/png"
+            elif payload.gcs_uri.endswith(".pdf"):
+                content_type = "application/pdf"
+            
+            # Parse GCS URI to reconstruct upload result metadata
+            parts = payload.gcs_uri[5:].split("/", 1)
+            bucket_name = parts[0]
+            object_name = parts[1]
+            gcs_upload_result = {
+                "bucket": bucket_name,
+                "object": object_name,
+                "uri": payload.gcs_uri,
+                "content_type": content_type
+            }
+        except Exception as e:
+            logger.error(f"Failed to download image from GCS ({payload.gcs_uri}): {e}")
+            return {"status": "failed", "error": f"GCS download failed: {str(e)}"}
+            
+    if not image_bytes:
+        logger.error(f"No image bytes could be retrieved for phone {payload.phone}")
+        return {"status": "failed", "error": "No image bytes could be retrieved"}
+        
+    # Execute multi-agent supervisor pipeline
+    supervisor = _create_supervisor()
+    state = await supervisor.run(
+        phone=payload.phone,
+        image_bytes=image_bytes,
+        ip_address=payload.ip_address or "unknown",
+        content_type=content_type,
+        gcs_upload_result=gcs_upload_result
+    )
+    
+    if state.status == WorkflowStatus.FAILED:
+        logger.error(f"Background pipeline failed for {payload.phone}: {state.error}")
+        return {"status": "failed", "error": state.error or "Processing failed"}
+        
+    logger.info(f"✅ Background pipeline completed successfully for {payload.phone}")
+    return {"status": "success", "record_id": state.write_result.record_id if state.write_result else ""}
+
 @app.post("/process_async")
 async def process_document_async(
     request: Request,
@@ -739,14 +818,9 @@ async def process_document_async(
     image_bytes = await file.read()
     phone_clean = phone.strip().replace(" ", "")
     
-    # In a real scenario, we'd save the image to GCS first, get the URI,
-    # and pass the URI to the task. For simplicity, if Cloud Tasks is unavailable,
-    # we just run the supervisor in background.
-    
     # Upload to GCS first so the background task doesn't need the raw bytes over HTTP
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    filename = f"{phone_clean}_{timestamp}.jpg"
-    gcs_uri = upload_to_gcs(image_bytes, filename)
+    gcs_upload = upload_bytes_to_gcs(image_bytes, phone_clean, file.content_type)
+    gcs_uri = gcs_upload.get("uri") if (gcs_upload and "uri" in gcs_upload) else None
     
     task_payload = {
         "phone": phone_clean,
@@ -760,9 +834,15 @@ async def process_document_async(
     
     if not task_created:
         logger.info("Falling back to FastAPI BackgroundTasks")
-        # In actual background task, we'd need to fetch from GCS. 
-        # But this is just demonstrating the architecture.
-        # background_tasks.add_task(supervisor.run_pipeline, phone_clean, image_bytes)
+        supervisor = _create_supervisor()
+        background_tasks.add_task(
+            supervisor.run,
+            phone=phone_clean,
+            image_bytes=image_bytes,
+            ip_address=task_payload["ip_address"],
+            content_type=file.content_type,
+            gcs_upload_result=gcs_upload
+        )
         
     return {
         "status": "processing",
@@ -913,30 +993,55 @@ async def get_patient_by_phone(phone: str):
 # ─── Recent Patients ──────────────────────────────────────────────────────────
 @app.get("/recent")
 async def get_recent_patients():
-    """Returns the 10 most recently added patients."""
+    """Returns the 10 most recently added patients with today_count and total_count."""
     use_mongo = get_db()
+    today_str = date.today().isoformat()  # e.g. "2026-06-04"
 
     if use_mongo:
-        results = patients_collection.find().sort("created_at", -1).limit(10)
+        all_results = list(patients_collection.find().sort("created_at", -1))
+        total_count = len(all_results)
         patients = []
-        for p in results:
+        today_count = 0
+        for p in all_results[:10]:
+            # Determine last visit date
+            visits = p.get("visits", [])
+            last_visit_date = visits[-1].get("date", "") if visits else ""
+            is_today = (last_visit_date == today_str)
+            if is_today:
+                today_count += 1
             patients.append({
                 "phone": p.get("phone", ""),
                 "name": p.get("name", "Unknown"),
                 "conditions": p.get("conditions", []),
                 "has_alerts": len(p.get("known_allergies", [])) > 0,
+                "last_visit_date": last_visit_date,
+                "is_today": is_today,
             })
+        # Count today across ALL patients (not just top 10)
+        today_count = sum(
+            1 for p in all_results
+            if p.get("visits") and p["visits"][-1].get("date", "") == today_str
+        )
     else:
+        total_count = len(in_memory_patients)
+        today_count = 0
         patients = []
         for p in in_memory_patients[-10:]:
+            visits = p.get("visits", [])
+            last_visit_date = visits[-1].get("date", "") if visits else ""
+            is_today = (last_visit_date == today_str)
+            if is_today:
+                today_count += 1
             patients.append({
                 "phone": p.get("phone", ""),
                 "name": p.get("name", "Unknown"),
                 "conditions": p.get("conditions", []),
                 "has_alerts": len(p.get("known_allergies", [])) > 0,
+                "last_visit_date": last_visit_date,
+                "is_today": is_today,
             })
 
-    return {"patients": patients}
+    return {"patients": patients, "today_count": today_count, "total_count": total_count}
 
 
 @app.post("/alerts/acknowledge")
@@ -1021,8 +1126,27 @@ def _get_patient_for_chat(phone: str) -> dict | None:
         p = patients_collection.find_one({"phone": phone_clean})
         if p:
             p.pop("_id", None)
+            if "secure_pii" in p:
+                decrypted_pii = decrypt_data(p["secure_pii"])
+                if not "error" in decrypted_pii:
+                    p["name"] = decrypted_pii.get("name", p.get("name"))
+                    p["age"] = decrypted_pii.get("age", p.get("age"))
+                    p["gender"] = decrypted_pii.get("gender", p.get("gender"))
+                p.pop("secure_pii", None)
         return p
-    return next((p for p in in_memory_patients if p.get("phone") == phone_clean), None)
+    else:
+        p = next((x for x in in_memory_patients if x.get("phone") == phone_clean), None)
+        if p:
+            import copy
+            p = copy.deepcopy(p)
+            if "secure_pii" in p:
+                decrypted_pii = decrypt_data(p["secure_pii"])
+                if not "error" in decrypted_pii:
+                    p["name"] = decrypted_pii.get("name", p.get("name"))
+                    p["age"] = decrypted_pii.get("age", p.get("age"))
+                    p["gender"] = decrypted_pii.get("gender", p.get("gender"))
+                p.pop("secure_pii", None)
+        return p
 
 
 def _build_patient_context(patient: dict) -> str:
@@ -1057,13 +1181,20 @@ def _rule_based_chat(context: str, question: str) -> str:
     return "Please check the patient record panel for full details."
 
 
-async def _query_gemini_chat(context: str, question: str) -> str:
+async def _query_gemini_chat(context: str, question: str, history: list = None) -> str:
     api_key = os.getenv("GOOGLE_API_KEY", "")
     if not api_key or "your_google" in api_key:
         return _rule_based_chat(context, question)
     try:
         _genai_chat.configure(api_key=api_key)
         model = _genai_chat.GenerativeModel("gemini-2.0-flash")
+        
+        history_lines = []
+        if history:
+            for msg in history[-10:]:
+                role = "Doctor" if msg.get("role") == "user" else "Assistant"
+                history_lines.append(f"{role}: {msg.get('text', '')}")
+
         lines = [
             "You are a clinical AI assistant for a doctor. Answer concisely and clinically.",
             "Use ONLY the patient information provided. If not available, say so clearly.",
@@ -1071,10 +1202,19 @@ async def _query_gemini_chat(context: str, question: str) -> str:
             "PATIENT RECORD:",
             context,
             "",
+        ]
+        if history_lines:
+            lines.extend([
+                "CONVERSATION HISTORY:",
+                "\n".join(history_lines),
+                "",
+            ])
+        lines.extend([
             "DOCTOR QUESTION: " + question,
             "",
             "Answer in 1-3 sentences. Be direct. Flag any safety concerns.",
-        ]
+        ])
+        
         prompt = chr(10).join(lines)
         response = model.generate_content(prompt)
         return response.text.strip()
@@ -1084,15 +1224,80 @@ async def _query_gemini_chat(context: str, question: str) -> str:
 
 # --- /chat endpoint ----------------------------------------------------------
 
+# Rolling window cap — max messages stored per doctor key
+_CHAT_HISTORY_CAP = 100
+
+
 @app.post("/chat")
 async def chat(payload: ChatRequest):
+    """Chat with Gemini about a specific patient, scoped per doctor.
+
+    Chat histories are stored under patient.chat_histories[doctor_id] so
+    different doctors maintain separate, persistent conversation threads for
+    the same patient.
+    """
     if not payload.phone:
         return {"answer": "Please select a patient first."}
     patient = _get_patient_for_chat(payload.phone)
     if not patient:
         return {"answer": f"No records found for {payload.phone}."}
+
+    phone_clean = payload.phone.strip().replace(" ", "")
+    # Normalise doctor_id — fall back to "default" when no login session
+    doctor_id = (payload.doctor_id or "default").strip() or "default"
+
+    # ── Backward compatibility: migrate old flat chat_history → chat_histories ──
+    raw_histories = patient.get("chat_histories")
+    if raw_histories is None:
+        # First time seeing new schema — check for old flat list
+        old_flat = patient.get("chat_history", [])
+        raw_histories = {"default": old_flat} if old_flat else {}
+
+    existing_history = list(raw_histories.get(doctor_id, []))
+
+    # ── Build context and query Gemini ──
     context = _build_patient_context(patient)
-    answer = await _query_gemini_chat(context, payload.query)
+    answer = await _query_gemini_chat(context, payload.query, existing_history)
+
+    # ── Append new messages ──
+    ts = datetime.utcnow().isoformat() + "Z"
+    new_msg_user  = {"role": "user",  "text": payload.query, "timestamp": ts}
+    new_msg_model = {"role": "model", "text": answer,        "timestamp": ts}
+    updated_history = existing_history + [new_msg_user, new_msg_model]
+
+    # Apply rolling window cap (keep newest messages)
+    if len(updated_history) > _CHAT_HISTORY_CAP:
+        updated_history = updated_history[-_CHAT_HISTORY_CAP:]
+
+    # ── Persist ──
+    history_key = f"chat_histories.{doctor_id}"
+    if get_db():
+        # Atomic $push + $slice: safe under concurrent writes
+        patients_collection.update_one(
+            {"phone": phone_clean},
+            {
+                "$push": {
+                    f"chat_histories.{doctor_id}": {
+                        "$each": [new_msg_user, new_msg_model],
+                        "$slice": -_CHAT_HISTORY_CAP,
+                    }
+                },
+                # Ensure the chat_histories map itself exists (upsert-friendly)
+                "$setOnInsert": {"chat_histories": {}},
+            },
+            upsert=False,
+        )
+    else:
+        # In-memory fallback — write whole updated list
+        for p in in_memory_patients:
+            if p.get("phone") == phone_clean:
+                if "chat_histories" not in p:
+                    p["chat_histories"] = {}
+                p["chat_histories"][doctor_id] = updated_history
+                # Remove legacy flat field if present
+                p.pop("chat_history", None)
+                break
+
     return {"answer": answer, "patient_name": patient.get("name", "Unknown")}
 
 
@@ -1114,6 +1319,10 @@ if _UI_DIR.exists():
     @app.get("/hospital")
     async def serve_hospital():
         return FileResponse(str(_UI_DIR / "hospital.html"))
+
+    @app.get("/hospital/patient-file")
+    async def serve_patient_file():
+        return FileResponse(str(_UI_DIR / "patient_detail.html"))
 
     @app.get("/patient")
     async def serve_patient():

@@ -13,6 +13,7 @@ steps:
 
   # Step 2: Push the image to Artifact Registry
   - name: 'gcr.io/cloud-builders/docker'
+<<<<<<< HEAD
     args:
       - 'push'
       - 'asia-south1-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/cliniqai:$COMMIT_SHA'
@@ -26,11 +27,17 @@ steps:
   # Step 4: Deploy to Cloud Run
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
     entrypoint: gcloud
+=======
+    args: ['push', 'asia-south1-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/cliniqai:latest']
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: 'gcloud'
+>>>>>>> bdb343d7796bd157003c8045ee24766131978143
     args:
       - 'run'
       - 'deploy'
       - 'cliniqai'
       - '--image'
+<<<<<<< HEAD
       - 'asia-south1-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/cliniqai:$COMMIT_SHA'
       - '--region'
       - 'asia-south1'
@@ -60,6 +67,12 @@ steps:
       - '--set-env-vars'
       - 'KMS_KEY_NAME=patient-data-key'
 
+=======
+      - 'asia-south1-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/cliniqai:latest'
+      - '--region'
+      - 'asia-south1'
+      - '--allow-unauthenticated'
+>>>>>>> bdb343d7796bd157003c8045ee24766131978143
 images:
   - 'asia-south1-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/cliniqai:$COMMIT_SHA'
   - 'asia-south1-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/cliniqai:latest'

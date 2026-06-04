@@ -199,9 +199,14 @@ async def test_happy_path_new_patient():
     # In-memory store should have 1 patient
     assert len(store) == 1
     assert store[0]["phone"] == "9876543210"
+    assert store[0]["name"] == "[ENCRYPTED_KMS]"
+    
+    # Verify KMS decryption
     from agent.gcp.kms import decrypt_data
     decrypted = decrypt_data(store[0]["secure_pii"])
     assert decrypted["name"] == "Ramesh Gupta"
+    assert decrypted["age"] == 45
+    assert decrypted["gender"] == "Male"
 
     print("  PASS: test_happy_path_new_patient")
 
@@ -471,9 +476,14 @@ async def test_extracted_override():
     assert state.status == WorkflowStatus.COMPLETED, f"Expected COMPLETED, got {state.status}; error={state.error}"
     assert state.extracted_data.patient_name == "Override Patient"
     assert len(store) == 1
+    assert store[0]["name"] == "[ENCRYPTED_KMS]"
+    
+    # Verify KMS decryption
     from agent.gcp.kms import decrypt_data
     decrypted = decrypt_data(store[0]["secure_pii"])
     assert decrypted["name"] == "Override Patient"
+    assert decrypted["age"] == 30
+    assert decrypted["gender"] == "Female"
 
     print("  PASS: test_extracted_override")
 
