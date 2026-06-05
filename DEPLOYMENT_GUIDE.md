@@ -26,8 +26,8 @@ Before running any commands, ensure you have the following:
 | Resource | Value | Source |
 |----------|-------|--------|
 | **GCP Project ID** | `project-21005770-1368-4c5d-8ea` | Google Cloud Console |
-| **Gemini API Key** | `AIzaSyAFQiu-kOL6zeV1bGd9pJAXM3VC2l4_CV4` | [Google AI Studio](https://aistudio.google.com/app/apikey) |
-| **MongoDB URI** | `mongodb+srv://4cp4dor_db_user:OYyOtAi1HpE01UQU@cluster0.wsiijwl.mongodb.net/cliniqai?retryWrites=true&w=majority` | [MongoDB Atlas](https://cloud.mongodb.com) |
+| **Gemini API Key** | `YOUR_GEMINI_API_KEY` | [Google AI Studio](https://aistudio.google.com/app/apikey) |
+| **MongoDB URI** | `YOUR_MONGODB_URI` | [MongoDB Atlas](https://cloud.mongodb.com) |
 | **GCS Bucket** | `cliniqai-uploads-project-21005770-1368` | Created in GCP |
 | **Region** | `asia-south1` | GCP Region |
 
@@ -74,8 +74,8 @@ cd Google-Cloud-Rapid-Agent-Hackathon
 ```bash
 export PROJECT_ID="project-21005770-1368-4c5d-8ea"
 export REGION="asia-south1"
-export GEMINI_KEY="AIzaSyAFQiu-kOL6zeV1bGd9pJAXM3VC2l4_CV4"
-export MONGODB_URI="mongodb+srv://4cp4dor_db_user:OYyOtAi1HpE01UQU@cluster0.wsiijwl.mongodb.net/cliniqai?retryWrites=true&w=majority"
+export GEMINI_KEY="YOUR_GEMINI_API_KEY"
+export MONGODB_URI="YOUR_MONGODB_URI"
 export GCS_BUCKET="cliniqai-uploads-project-21005770-1368"
 ```
 
