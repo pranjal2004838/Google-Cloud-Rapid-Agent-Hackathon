@@ -266,9 +266,59 @@
       <div class="text-xs text-slate-400 text-center py-12"><span class="spinner-dark mr-2"></span>Loading medical history...</div>
     </div>
 
-    <div id="attachments-section" class="hidden">
-      <h2 class="text-xs font-bold text-slate-400 uppercase tracking-widest px-1 mt-4">Clinical Reports &amp; Imaging</h2>
-      <div id="attachments-list" class="mt-2 space-y-3"></div>
+    <div id="reports-section" class="mt-6">
+      <div class="flex justify-between items-center mb-3">
+        <h2 class="text-xs font-bold text-slate-400 uppercase tracking-widest px-1">Clinical Reports & Imaging</h2>
+        <button onclick="toggleReportUpload()" class="btn-ghost text-[10px] py-1 px-3">+ Upload Report</button>
+      </div>
+
+      <!-- Report Upload Form (hidden by default) -->
+      <div id="report-upload-form" class="card hidden fade-in mb-4">
+        <h3 class="text-xs font-bold text-slate-700 mb-3">Upload New Report</h3>
+        <div class="space-y-3">
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="text-[10px] font-bold text-slate-400 block mb-1">Report Type</label>
+              <select id="report-type" class="input-field text-xs py-2">
+                <option value="blood_test">🩸 Blood Test</option>
+                <option value="x_ray">🦴 X-Ray</option>
+                <option value="mri">🧲 MRI</option>
+                <option value="ct_scan">📡 CT Scan</option>
+                <option value="ultrasound">🔊 Ultrasound</option>
+                <option value="ecg">💓 ECG</option>
+                <option value="complete_health_report">📋 Complete Health Report</option>
+                <option value="pathology">🔬 Pathology</option>
+                <option value="other">📄 Other</option>
+              </select>
+            </div>
+            <div>
+              <label class="text-[10px] font-bold text-slate-400 block mb-1">Report Date</label>
+              <input type="date" id="report-date" class="input-field text-xs py-2" />
+            </div>
+          </div>
+          <div>
+            <label class="text-[10px] font-bold text-slate-400 block mb-1">Report Name</label>
+            <input type="text" id="report-name" class="input-field text-xs py-2" placeholder="e.g., Complete Blood Count (CBC)" />
+          </div>
+          <div>
+            <label class="text-[10px] font-bold text-slate-400 block mb-1">Notes / Findings</label>
+            <input type="text" id="report-notes" class="input-field text-xs py-2" placeholder="Key findings or observations..." />
+          </div>
+          <div id="report-drop-zone" class="drop-zone py-4" onclick="document.getElementById('report-file-input').click()">
+            <div class="text-2xl mb-1">📎</div>
+            <p class="text-xs font-semibold text-slate-700">Drop report file</p>
+            <p class="text-[10px] text-slate-400">JPG · PNG · PDF</p>
+            <input id="report-file-input" type="file" accept=".jpg,.jpeg,.png,.pdf" class="hidden" onchange="previewReportFile(event)" />
+          </div>
+          <img id="report-preview" class="hidden rounded-lg border border-slate-200 max-h-20 object-contain w-full" />
+          <button id="report-upload-btn" class="btn-primary text-xs py-2" onclick="uploadReport()" disabled>Upload Report</button>
+        </div>
+      </div>
+
+      <!-- Reports Gallery -->
+      <div id="reports-gallery" class="space-y-3">
+        <div class="text-xs text-slate-400 text-center py-6">Loading reports...</div>
+      </div>
     </div>
   </div>
 
@@ -411,6 +461,28 @@
 
 </div>
 
+<!-- Lightbox Modal -->
+<div id="lightbox-modal" class="hidden fixed inset-0 z-[100] bg-black/80 flex items-center justify-center p-8" onclick="closeLightbox(event)">
+  <div class="relative max-w-4xl max-h-[90vh] w-full bg-white rounded-2xl overflow-hidden shadow-2xl" onclick="event.stopPropagation()">
+    <div id="lightbox-header" class="bg-white border-b border-slate-100 px-5 py-3 flex justify-between items-center">
+      <div>
+        <h3 id="lightbox-title" class="text-sm font-bold text-slate-800">Document Viewer</h3>
+        <p id="lightbox-subtitle" class="text-[10px] text-slate-400"></p>
+      </div>
+      <button onclick="closeLightbox()" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500 hover:text-slate-800 transition-colors text-lg font-bold">×</button>
+    </div>
+    <div id="lightbox-body" class="flex items-center justify-center bg-slate-50 p-4" style="max-height: calc(90vh - 60px); overflow: auto">
+      <img id="lightbox-img" class="max-w-full max-h-[75vh] object-contain rounded-lg" />
+      <div id="lightbox-loading" class="text-sm text-slate-400 py-12"><span class="spinner-dark mr-2"></span>Loading document...</div>
+      <div id="lightbox-error" class="hidden text-center py-12">
+        <div class="text-4xl mb-3">📄</div>
+        <p id="lightbox-error-msg" class="text-sm text-slate-500">Document not available</p>
+        <p class="text-xs text-slate-400 mt-1">The original prescription image is stored securely in cloud storage</p>
+      </div>
+    </div>
+  </div>
+</div>
+
 
 <!-- ──────────────────────────────────── -->
 <!-- SCRIPTS                             -->
@@ -464,6 +536,197 @@ async function checkHealth() {
 checkHealth();
 
 // ─────────────────────────────────────
+// Reports System & Lightbox
+// ─────────────────────────────────────
+let selectedReportFile = null;
+
+function toggleReportUpload() {
+  const form = document.getElementById('report-upload-form');
+  form.classList.toggle('hidden');
+  // Set default date to today
+  if (!document.getElementById('report-date').value) {
+    document.getElementById('report-date').value = new Date().toISOString().split('T')[0];
+  }
+}
+
+function previewReportFile(event) {
+  selectedReportFile = event.target.files[0];
+  if (!selectedReportFile) return;
+  if (selectedReportFile.type.startsWith('image/')) {
+    const preview = document.getElementById('report-preview');
+    preview.src = URL.createObjectURL(selectedReportFile);
+    preview.classList.remove('hidden');
+  } else {
+    document.getElementById('report-preview').classList.add('hidden');
+  }
+  document.getElementById('report-upload-btn').disabled = false;
+}
+
+async function uploadReport() {
+  if (!selectedReportFile) { showToast('Select a report file first', 'error'); return; }
+  const reportName = document.getElementById('report-name').value.trim();
+  if (!reportName) { showToast('Enter a report name', 'error'); return; }
+
+  const btn = document.getElementById('report-upload-btn');
+  btn.innerHTML = '<span class="spinner"></span> Uploading...';
+  btn.disabled = true;
+
+  try {
+    const formData = new FormData();
+    formData.append('report_type', document.getElementById('report-type').value);
+    formData.append('report_name', reportName);
+    formData.append('report_date', document.getElementById('report-date').value || new Date().toISOString().split('T')[0]);
+    formData.append('doctor_name', docName);
+    formData.append('hospital_name', loggedHosp || '');
+    formData.append('hosp_id', loggedHosp || '');
+    formData.append('notes', document.getElementById('report-notes').value.trim());
+    formData.append('file', selectedReportFile);
+
+    const res = await fetch(`${API}/patient/${encodeURIComponent(phone)}/reports`, { method: 'POST', body: formData });
+    const data = await res.json();
+    if (data.ok) {
+      showToast('Report uploaded successfully!', 'success');
+      toggleReportUpload();
+      selectedReportFile = null;
+      document.getElementById('report-preview').classList.add('hidden');
+      document.getElementById('report-name').value = '';
+      document.getElementById('report-notes').value = '';
+      loadReports();
+    } else {
+      showToast(data.message || 'Upload failed', 'error');
+    }
+  } catch (e) {
+    showToast('Report upload failed — check server', 'error');
+  } finally {
+    btn.innerHTML = 'Upload Report';
+    btn.disabled = false;
+  }
+}
+
+const REPORT_TYPE_ICONS = {
+  blood_test: '🩸', x_ray: '🦴', mri: '🧲', ct_scan: '📡',
+  ultrasound: '🔊', ecg: '💓', complete_health_report: '📋',
+  pathology: '🔬', other: '📄'
+};
+const REPORT_TYPE_LABELS = {
+  blood_test: 'Blood Test', x_ray: 'X-Ray', mri: 'MRI', ct_scan: 'CT Scan',
+  ultrasound: 'Ultrasound', ecg: 'ECG', complete_health_report: 'Health Report',
+  pathology: 'Pathology', other: 'Other'
+};
+
+function esc(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+async function loadReports() {
+  try {
+    const res = await fetch(`${API}/patient/${encodeURIComponent(phone)}/reports`);
+    const data = await res.json();
+    const gallery = document.getElementById('reports-gallery');
+    const reports = data.reports || [];
+
+    if (!reports.length) {
+      gallery.innerHTML = `<div class="card text-center py-8 bg-white text-slate-400"><div class="text-3xl mb-2">🧪</div><p class="text-xs font-semibold">No reports uploaded yet</p><p class="text-[10px] text-slate-300 mt-1">Upload blood tests, X-rays, MRI scans and more</p></div>`;
+      return;
+    }
+
+    gallery.innerHTML = reports.map(r => {
+      const icon = REPORT_TYPE_ICONS[r.type] || '📄';
+      const label = REPORT_TYPE_LABELS[r.type] || r.type;
+      const badgeColor = r.type === 'blood_test' ? 'badge-red' : r.type === 'x_ray' || r.type === 'mri' || r.type === 'ct_scan' ? 'badge-blue' : r.type === 'ecg' ? 'badge-amber' : 'badge-green';
+      return `
+        <div class="card bg-white border border-slate-200 rounded-xl p-3.5 fade-in hover:border-emerald-200 transition-colors">
+          <div class="flex justify-between items-start mb-2">
+            <div class="flex items-center gap-2">
+              <span class="text-lg">${icon}</span>
+              <div>
+                <span class="font-bold text-xs text-slate-800">${esc(r.name)}</span>
+                <span class="badge ${badgeColor} ml-2 text-[9px]">${label}</span>
+              </div>
+            </div>
+            <span class="text-[10px] text-slate-400">${esc(r.date)}</span>
+          </div>
+          <p class="text-[10px] text-slate-400 mb-1">Dr. ${esc(r.doctor)} · ${esc(r.hospital)}</p>
+          ${r.notes ? `<div class="bg-slate-50 border border-slate-100 rounded-lg p-2 mt-1.5 text-[10px] text-slate-600 leading-relaxed italic">"${esc(r.notes)}"</div>` : ''}
+          <div class="mt-2 flex gap-2">
+            ${r.file_url ? `<button onclick="openLightbox('${esc(r.name)}', '${esc(r.date)} · ${esc(r.hospital)}', '${esc(r.file_url)}')" class="btn-ghost text-[10px] py-1 flex-1 flex items-center justify-center gap-1">👁 View</button>` : `<span class="text-[10px] text-slate-300 py-1">📎 Report on file</span>`}
+          </div>
+        </div>`;
+    }).join('');
+  } catch (e) {
+    document.getElementById('reports-gallery').innerHTML = `<div class="text-xs text-red-400 text-center py-4">Failed to load reports</div>`;
+  }
+}
+
+async function viewPrescription(visitId) {
+  const lightbox = document.getElementById('lightbox-modal');
+  const img = document.getElementById('lightbox-img');
+  const loading = document.getElementById('lightbox-loading');
+  const error = document.getElementById('lightbox-error');
+
+  // Show lightbox with loading state
+  lightbox.classList.remove('hidden');
+  img.classList.add('hidden');
+  loading.classList.remove('hidden');
+  error.classList.add('hidden');
+  document.getElementById('lightbox-title').textContent = 'Original Prescription';
+  document.getElementById('lightbox-subtitle').textContent = 'Loading from cloud storage...';
+
+  try {
+    const res = await fetch(`${API}/prescription/${encodeURIComponent(phone)}/${encodeURIComponent(visitId)}/image`);
+    const data = await res.json();
+    loading.classList.add('hidden');
+
+    if (data.found && data.url) {
+      img.src = data.url;
+      img.classList.remove('hidden');
+      document.getElementById('lightbox-subtitle').textContent = `${data.visit_date || ''} · ${data.doctor || ''}`;
+    } else {
+      error.classList.remove('hidden');
+      document.getElementById('lightbox-error-msg').textContent = data.message || 'Prescription image not available';
+      document.getElementById('lightbox-subtitle').textContent = `${data.visit_date || ''} · ${data.doctor || ''}`;
+    }
+  } catch (e) {
+    loading.classList.add('hidden');
+    error.classList.remove('hidden');
+    document.getElementById('lightbox-error-msg').textContent = 'Could not retrieve prescription image';
+  }
+}
+
+function openLightbox(title, subtitle, url) {
+  const lightbox = document.getElementById('lightbox-modal');
+  const img = document.getElementById('lightbox-img');
+  const loading = document.getElementById('lightbox-loading');
+  const error = document.getElementById('lightbox-error');
+  
+  lightbox.classList.remove('hidden');
+  loading.classList.add('hidden');
+  error.classList.add('hidden');
+  document.getElementById('lightbox-title').textContent = title;
+  document.getElementById('lightbox-subtitle').textContent = subtitle;
+  
+  if (url) {
+    img.src = url;
+    img.classList.remove('hidden');
+  } else {
+    img.classList.add('hidden');
+    error.classList.remove('hidden');
+  }
+}
+
+function closeLightbox(event) {
+  if (event && event.target !== event.currentTarget) return;
+  document.getElementById('lightbox-modal').classList.add('hidden');
+  document.getElementById('lightbox-img').src = '';
+}
+
+// ─────────────────────────────────────
 // Load Patient Record
 // ─────────────────────────────────────
 let patientData = null;
@@ -480,6 +743,7 @@ async function loadPatientDetails() {
       // Backward compat: also check old flat chat_history field
       const myHistory = allHistories[loggedDoc] || data.patient.chat_history || [];
       renderChatHistory(myHistory);
+      loadReports();
     } else {
       showErrorState(`No medical records found for patient: <strong>${phone}</strong>`);
     }
@@ -566,6 +830,11 @@ function renderPatientFile(patient) {
         <div class="mt-2.5">
           <p class="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 border-b border-slate-50 pb-1">Medications Prescribed</p>
           ${medsList || '<p class="text-xs text-slate-400 italic">No medications recorded</p>'}
+        </div>
+        <div class="mt-3 pt-2 border-t border-slate-50 flex gap-2">
+          <button onclick="viewPrescription('${esc(v.visit_id)}')" class="btn-ghost text-[10px] py-1 flex-1 flex items-center justify-center gap-1">
+            📄 View Original Rx
+          </button>
         </div>
       </div>`;
   }).join('');

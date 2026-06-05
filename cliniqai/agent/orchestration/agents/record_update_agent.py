@@ -133,22 +133,37 @@ class RecordUpdateAgent:
 
         all_allergies = context.all_allergies
 
+        # Check for same-day duplicates or context-flagged duplicates
+        is_duplicate = context.duplicate_check.get("is_duplicate", False)
+        for v in existing.get("visits", []):
+            if v.get("date") == visit.get("date"):
+                is_duplicate = True
+                break
+
         if self._collection is not None:
+            update_query = {
+                "$push": {"audit_log": audit_event},
+                "$set": {"known_allergies": all_allergies},
+            }
+            if not is_duplicate:
+                update_query["$push"]["visits"] = visit
+
             self._collection.update_one(
                 {"_id": existing["_id"]},
-                {
-                    "$push": {"visits": visit, "audit_log": audit_event},
-                    "$set": {"known_allergies": all_allergies},
-                },
+                update_query,
             )
             record_id = str(existing["_id"])
         else:
             existing["known_allergies"] = all_allergies
-            existing["visits"].append(visit)
+            if not is_duplicate:
+                existing["visits"].append(visit)
             existing.setdefault("audit_log", []).append(audit_event)
             record_id = existing.get("patient_id", "")
 
-        visit_count = len(existing.get("visits", [])) + (1 if self._collection is not None else 0)
+        visit_count = len(existing.get("visits", []))
+        if self._collection is not None and not is_duplicate:
+            visit_count += 1
+
         audit_log = existing.get("audit_log", [])
         if self._collection is not None:
             audit_log = audit_log + [audit_event]

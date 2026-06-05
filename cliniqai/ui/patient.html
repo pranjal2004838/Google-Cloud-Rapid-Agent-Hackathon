@@ -90,6 +90,16 @@
         <div class="card" id="timeline">
           <!-- Populated by JS -->
         </div>
+
+        <h2 class="text-lg font-bold text-slate-900 mb-4 mt-8">My Medical Reports</h2>
+        <div id="reports-section" class="card">
+          <div class="text-sm text-slate-400 text-center py-6">Loading reports...</div>
+        </div>
+
+        <h2 class="text-lg font-bold text-slate-900 mb-4 mt-8">Access Permissions</h2>
+        <div id="access-section" class="card">
+          <div class="text-sm text-slate-400 text-center py-4">Loading access grants...</div>
+        </div>
       </div>
     </div>
 
@@ -111,6 +121,25 @@
       </div>
     </div>
 
+  </div>
+
+  <!-- Lightbox -->
+  <div id="lightbox-modal" class="hidden" style="position:fixed;inset:0;z-index:100;background:rgba(0,0,0,0.8);display:flex;align-items:center;justify-content:center;padding:2rem" onclick="closeLightbox(event)">
+    <div style="position:relative;max-width:56rem;max-height:90vh;width:100%;background:white;border-radius:1rem;overflow:hidden;box-shadow:0 25px 50px rgba(0,0,0,0.25)" onclick="event.stopPropagation()">
+      <div style="padding:12px 20px;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center">
+        <div><h3 id="lb-title" style="font-size:0.875rem;font-weight:700;color:#1e293b">Document</h3><p id="lb-subtitle" style="font-size:0.625rem;color:#94a3b8"></p></div>
+        <button onclick="closeLightbox()" style="width:32px;height:32px;border-radius:50%;background:#f1f5f9;border:none;cursor:pointer;font-size:1.1rem;font-weight:700;color:#64748b">×</button>
+      </div>
+      <div id="lb-body" style="display:flex;align-items:center;justify-content:center;background:#f8fafc;padding:1rem;max-height:calc(90vh - 60px);overflow:auto">
+        <img id="lb-img" style="max-width:100%;max-height:75vh;object-fit:contain;border-radius:0.5rem" />
+        <div id="lb-loading" style="font-size:0.875rem;color:#94a3b8;padding:3rem 0">Loading...</div>
+        <div id="lb-error" class="hidden" style="text-align:center;padding:3rem 0">
+          <div style="font-size:2.5rem;margin-bottom:0.75rem">📄</div>
+          <p id="lb-error-msg" style="font-size:0.875rem;color:#64748b">Document not available</p>
+          <p style="font-size:0.75rem;color:#94a3b8;margin-top:0.25rem">The prescription is stored securely in cloud storage</p>
+        </div>
+      </div>
+    </div>
   </div>
 
   <script>
@@ -156,6 +185,9 @@
                   <div class="font-bold text-sm text-slate-800">${v.doctor || 'Unknown Clinic'}</div>
                   <div class="text-xs text-slate-500 mb-2">${(v.diagnosis||[]).join(', ')}</div>
                   <div>${medHtml || '<span class="text-xs text-slate-400">No medicines prescribed</span>'}</div>
+                  <div class="mt-2 pt-2 border-t border-slate-100">
+                    <button onclick="viewPrescription('${v.visit_id}')" class="text-xs text-blue-600 font-semibold hover:underline">📄 View Original Prescription</button>
+                  </div>
                 </div>
               `;
             }).join('');
@@ -207,7 +239,96 @@
       msgs.scrollTop = msgs.scrollHeight;
     }
 
+    // Reports
+    const RPT_ICONS = {blood_test:'🩸',x_ray:'🦴',mri:'🧲',ct_scan:'📡',ultrasound:'🔊',ecg:'💓',complete_health_report:'📋',pathology:'🔬',other:'📄'};
+    const RPT_LABELS = {blood_test:'Blood Test',x_ray:'X-Ray',mri:'MRI',ct_scan:'CT Scan',ultrasound:'Ultrasound',ecg:'ECG',complete_health_report:'Health Report',pathology:'Pathology',other:'Other'};
+
+    async function loadReports() {
+      try {
+        const res = await fetch((window.location.protocol==='file:'?'http://localhost:8000':'')+'/patient/'+encodeURIComponent(phone)+'/reports');
+        const data = await res.json();
+        const sec = document.getElementById('reports-section');
+        const reports = data.reports || [];
+        if (!reports.length) {
+          sec.innerHTML = '<div class="text-sm text-slate-400 text-center py-6"><div class="text-3xl mb-2">🧪</div>No reports uploaded yet</div>';
+          return;
+        }
+        sec.innerHTML = reports.map(r => {
+          const icon = RPT_ICONS[r.type]||'📄';
+          const label = RPT_LABELS[r.type]||r.type;
+          return `<div class="timeline-item"><div class="timeline-dot" style="border-color:#10b981"></div><div class="text-xs font-bold text-emerald-600 mb-1">${r.date}</div><div class="font-bold text-sm text-slate-800">${icon} ${r.name} <span class="inline-block bg-slate-100 text-slate-500 text-[10px] px-2 py-0.5 rounded-full ml-1">${label}</span></div><div class="text-xs text-slate-500">${r.doctor} · ${r.hospital}</div>${r.notes?'<div class="text-xs text-slate-400 mt-1 italic">"'+r.notes+'"</div>':''}</div>`;
+        }).join('');
+      } catch(e) {
+        document.getElementById('reports-section').innerHTML = '<div class="text-sm text-red-400 text-center py-4">Failed to load reports</div>';
+      }
+    }
+
+    async function loadAccessGrants() {
+      try {
+        const res = await fetch((window.location.protocol==='file:'?'http://localhost:8000':'')+'/access/grants/'+encodeURIComponent(phone));
+        const data = await res.json();
+        const sec = document.getElementById('access-section');
+        const grants = data.grants || [];
+        if (!grants.length) {
+          sec.innerHTML = '<div class="text-sm text-slate-400 text-center py-4"><div class="text-2xl mb-2">🔒</div>No hospitals have active access to your records</div>';
+          return;
+        }
+        sec.innerHTML = '<div class="space-y-3">' + grants.map(g => {
+          return `<div class="flex items-center justify-between p-3 bg-blue-50 rounded-xl border border-blue-100"><div><div class="text-xs font-bold text-slate-800">${g.hosp_id}</div><div class="text-[10px] text-slate-400">Access until: ${new Date(g.expires).toLocaleString()}</div></div><button onclick="revokeAccess('${g.hosp_id}')" class="text-xs font-semibold text-red-600 hover:underline">Revoke</button></div>`;
+        }).join('') + '</div>';
+      } catch(e) {
+        document.getElementById('access-section').innerHTML = '<div class="text-sm text-slate-400 text-center py-4">Could not load access info</div>';
+      }
+    }
+
+    async function revokeAccess(hospId) {
+      try {
+        await fetch((window.location.protocol==='file:'?'http://localhost:8000':'')+'/access/grants/'+encodeURIComponent(phone)+'/'+encodeURIComponent(hospId), {method:'DELETE'});
+        loadAccessGrants();
+      } catch(e) {}
+    }
+
+    async function viewPrescription(visitId) {
+      const modal = document.getElementById('lightbox-modal');
+      const img = document.getElementById('lb-img');
+      const loading = document.getElementById('lb-loading');
+      const error = document.getElementById('lb-error');
+      modal.classList.remove('hidden');
+      modal.style.display = 'flex';
+      img.style.display = 'none';
+      loading.style.display = 'block';
+      error.classList.add('hidden');
+      document.getElementById('lb-title').textContent = 'Original Prescription';
+      try {
+        const res = await fetch((window.location.protocol==='file:'?'http://localhost:8000':'')+'/prescription/'+encodeURIComponent(phone)+'/'+encodeURIComponent(visitId)+'/image');
+        const data = await res.json();
+        loading.style.display = 'none';
+        if (data.found && data.url) {
+          img.src = data.url;
+          img.style.display = 'block';
+          document.getElementById('lb-subtitle').textContent = (data.visit_date||'')+' · '+(data.doctor||'');
+        } else {
+          error.classList.remove('hidden');
+          document.getElementById('lb-error-msg').textContent = data.message || 'Not available';
+          document.getElementById('lb-subtitle').textContent = (data.visit_date||'')+' · '+(data.doctor||'');
+        }
+      } catch(e) {
+        loading.style.display = 'none';
+        error.classList.remove('hidden');
+      }
+    }
+
+    function closeLightbox(event) {
+      if (event && event.target !== event.currentTarget) return;
+      const modal = document.getElementById('lightbox-modal');
+      modal.classList.add('hidden');
+      modal.style.display = 'none';
+      document.getElementById('lb-img').src = '';
+    }
+
     loadPatient();
+    loadReports();
+    loadAccessGrants();
   </script>
 <script src="/ui/i18n.js"></script>
 </body>

@@ -437,7 +437,7 @@ async function checkHealth() {
 checkHealth();
 
 // ─────────────────────────────────────
-// Patient Search
+// Patient Search & OTP Access
 // ─────────────────────────────────────
 async function searchPatient() {
   const phone = document.getElementById('search-phone').value.trim().replace(/\s/g,'');
@@ -450,7 +450,29 @@ async function searchPatient() {
     const res  = await fetch(`${API}/patient/${encodeURIComponent(phone)}`);
     const data = await res.json();
     if (data.found) {
-      renderSearchResult(data.patient);
+      // 1. Check if patient has visited this hospital before
+      const hasHistory = (data.patient.visits || []).some(v => v.hosp_id === loggedHosp || (v.doctor || '').includes(loggedHosp)) ||
+                         (data.patient.reports || []).some(r => r.hosp_id === loggedHosp || (r.hospital || '').includes(loggedHosp));
+      
+      if (hasHistory) {
+         renderSearchResult(data.patient);
+         return;
+      }
+
+      // 2. Check active access grants
+      try {
+         const grantRes = await fetch(`${API}/access/grants/${encodeURIComponent(phone)}`);
+         const grantData = await grantRes.json();
+         const hasGrant = (grantData.grants || []).some(g => g.hosp_id === loggedHosp);
+         if (hasGrant) {
+            renderSearchResult(data.patient);
+            return;
+         }
+      } catch(e) {}
+
+      // 3. Request OTP
+      renderOTPRequest(data.patient, phone);
+
     } else {
       resultBox.innerHTML = `
         <div class="card text-center py-5 bg-white border border-slate-200 shadow-sm">
@@ -462,6 +484,83 @@ async function searchPatient() {
     }
   } catch (e) {
     resultBox.innerHTML = `<div class="text-xs text-red-500 text-center py-3">Search failed — check server status</div>`;
+  }
+}
+
+function renderOTPRequest(patient, phone) {
+  const div = document.getElementById('search-result');
+  div.innerHTML = `
+    <div class="card fade-in border border-amber-200 shadow-sm bg-amber-50">
+      <div class="flex items-center gap-3 mb-3">
+        <div class="avatar" style="background:#d97706">${initials(patient.name)}</div>
+        <div class="flex-1 min-w-0">
+          <div class="font-bold text-xs text-slate-900 truncate">Patient File Protected</div>
+          <div class="text-[10px] text-amber-700">${esc(phone)}</div>
+        </div>
+      </div>
+      <p class="text-[10px] text-amber-800 mb-3 leading-relaxed">This patient has not visited <strong>${esc(loggedHosp)}</strong> before. OTP authorization from the patient is required to access their clinical history.</p>
+      
+      <div id="otp-req-view">
+        <button class="btn-primary w-full text-xs py-2 mb-1 border-amber-600 bg-amber-600 hover:bg-amber-700" onclick="requestOTP('${esc(phone)}')">Request OTP Access</button>
+      </div>
+
+      <div id="otp-verify-view" class="hidden">
+        <p class="text-[10px] text-amber-700 font-bold mb-1.5 uppercase">Enter 6-Digit OTP</p>
+        <div class="flex gap-2 mb-2">
+          <input id="otp-input" class="input-field text-center tracking-[0.5em] text-sm font-bold border-amber-300 focus:border-amber-500" type="text" placeholder="123456" maxlength="6" onkeydown="if(event.key==='Enter') verifyOTP('${esc(phone)}')"/>
+        </div>
+        <button class="btn-primary bg-emerald-600 border-emerald-600 hover:bg-emerald-700 w-full text-xs py-2" onclick="verifyOTP('${esc(phone)}')">Verify & Unlock Records</button>
+      </div>
+    </div>`;
+  div.classList.remove('hidden');
+}
+
+async function requestOTP(phone) {
+  const btn = document.querySelector('#otp-req-view button');
+  const oldText = btn.innerHTML;
+  btn.innerHTML = '<span class="spinner font-bold"></span> Sending...';
+  try {
+    const res = await fetch(`${API}/access/request-otp`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ patient_phone: phone, requesting_hosp_id: loggedHosp, requesting_doc_id: loggedDoc })
+    });
+    const data = await res.json();
+    if (data.ok) {
+      document.getElementById('otp-req-view').classList.add('hidden');
+      document.getElementById('otp-verify-view').classList.remove('hidden');
+      // For demo purposes, we alert the OTP so we can test it
+      alert('DEMO MODE - SMS SENT\\n\\nOTP: ' + data.demo_otp);
+      showToast('OTP sent to patient via SMS', 'success');
+      document.getElementById('otp-input').focus();
+    } else {
+      showToast(data.message, 'error');
+      btn.innerHTML = oldText;
+    }
+  } catch(e) {
+    showToast('Network error', 'error');
+    btn.innerHTML = oldText;
+  }
+}
+
+async function verifyOTP(phone) {
+  const otp = document.getElementById('otp-input').value.trim();
+  if (!otp) return;
+  try {
+    const res = await fetch(`${API}/access/verify-otp`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ patient_phone: phone, requesting_hosp_id: loggedHosp, requesting_doc_id: loggedDoc, otp: otp })
+    });
+    const data = await res.json();
+    if (data.ok) {
+      showToast('Access Granted!', 'success');
+      searchPatient(); // Reload and it will succeed
+    } else {
+      showToast(data.message, 'error');
+    }
+  } catch(e) {
+    showToast('Network error', 'error');
   }
 }
 
@@ -497,7 +596,8 @@ function prefillUploadPhone(phone) {
 // ─────────────────────
 async function loadRecent() {
   try {
-    const res  = await fetch(`${API}/recent`);
+    const hospIdParam = loggedHosp ? `?hosp_id=${encodeURIComponent(loggedHosp)}` : '';
+    const res  = await fetch(`${API}/recent${hospIdParam}`);
     const data = await res.json();
     const list = document.getElementById('recent-list');
     const patients = data.patients || [];

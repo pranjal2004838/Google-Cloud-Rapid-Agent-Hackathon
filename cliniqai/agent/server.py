@@ -53,6 +53,13 @@ GOOGLE_CLOUD_PROJECT = os.getenv("GOOGLE_CLOUD_PROJECT")
 GOOGLE_CLOUD_LOCATION = os.getenv("GOOGLE_CLOUD_LOCATION", "us-central1")
 GCS_UPLOAD_BUCKET = os.getenv("GCS_UPLOAD_BUCKET")
 
+# ─── In-Memory OTP Store for Cross-Hospital Access ────────────────────────────
+import random as _random
+from datetime import timedelta
+
+_otp_store = {}  # key: f"{phone}:{hosp_id}" → {"otp": str, "expires": datetime, "doc_id": str}
+_access_grants = {}  # key: f"{phone}:{hosp_id}" → {"granted_at": datetime, "expires": datetime, "doc_id": str}
+
 # ─── MongoDB Connection (lazy — gracefully handles missing config) ────────────
 client = None
 db = None
@@ -239,6 +246,60 @@ in_memory_patients = [
                     "visit_date": "2026-03-15"
                 }
             }
+        ],
+        "reports": [
+            {
+                "report_id": "rpt-priya-1",
+                "type": "blood_test",
+                "name": "Complete Blood Count (CBC)",
+                "date": "2026-03-06",
+                "doctor": "Dr. Patel",
+                "hospital": "Nashik Clinic",
+                "hosp_id": "HSP_NASHIK_001",
+                "notes": "Post-treatment follow-up. WBC slightly elevated.",
+                "file_url": None,
+                "file_type": "image/jpeg",
+                "created_at": "2026-03-06T12:00:00Z"
+            },
+            {
+                "report_id": "rpt-priya-2",
+                "type": "x_ray",
+                "name": "Chest X-Ray (PA View)",
+                "date": "2026-03-05",
+                "doctor": "Dr. Patel",
+                "hospital": "Nashik Clinic",
+                "hosp_id": "HSP_NASHIK_001",
+                "notes": "Mild bronchial thickening noted. No consolidation.",
+                "file_url": None,
+                "file_type": "image/jpeg",
+                "created_at": "2026-03-05T14:00:00Z"
+            },
+            {
+                "report_id": "rpt-priya-3",
+                "type": "complete_health_report",
+                "name": "Annual Health Checkup 2026",
+                "date": "2026-03-10",
+                "doctor": "City Hospital",
+                "hospital": "City Hospital, Nashik",
+                "hosp_id": "HSP_CITY_001",
+                "notes": "BP 145/92. Recommended lifestyle modification.",
+                "file_url": None,
+                "file_type": "application/pdf",
+                "created_at": "2026-03-10T16:00:00Z"
+            },
+            {
+                "report_id": "rpt-priya-4",
+                "type": "mri",
+                "name": "MRI Knee (Right)",
+                "date": "2026-03-16",
+                "doctor": "Dr. Gupta",
+                "hospital": "Dr. Gupta's Clinic, Nashik",
+                "hosp_id": "HSP_GUPTA_001",
+                "notes": "Mild cartilage thinning. Grade 2 osteoarthritis changes.",
+                "file_url": None,
+                "file_type": "image/jpeg",
+                "created_at": "2026-03-16T10:00:00Z"
+            }
         ]
     },
     {
@@ -299,6 +360,47 @@ in_memory_patients = [
                     "visit_date": "2026-04-12"
                 }
             }
+        ],
+        "reports": [
+            {
+                "report_id": "rpt-rajesh-1",
+                "type": "blood_test",
+                "name": "HbA1c + Fasting Glucose",
+                "date": "2026-04-12",
+                "doctor": "Dr. Mehta",
+                "hospital": "Lotus Diabetes Care",
+                "hosp_id": "HSP_LOTUS_001",
+                "notes": "HbA1c: 7.8%. Fasting glucose: 156 mg/dL. Poor control.",
+                "file_url": None,
+                "file_type": "application/pdf",
+                "created_at": "2026-04-12T11:00:00Z"
+            },
+            {
+                "report_id": "rpt-rajesh-2",
+                "type": "blood_test",
+                "name": "Lipid Profile",
+                "date": "2026-05-22",
+                "doctor": "Dr. Roy",
+                "hospital": "Global Hearts Clinic",
+                "hosp_id": "HSP_GLOBAL_001",
+                "notes": "Total cholesterol: 268. LDL: 178. Triglycerides: 210. High risk.",
+                "file_url": None,
+                "file_type": "image/jpeg",
+                "created_at": "2026-05-22T09:30:00Z"
+            },
+            {
+                "report_id": "rpt-rajesh-3",
+                "type": "ecg",
+                "name": "ECG 12-Lead",
+                "date": "2026-05-22",
+                "doctor": "Dr. Roy",
+                "hospital": "Global Hearts Clinic",
+                "hosp_id": "HSP_GLOBAL_001",
+                "notes": "Normal sinus rhythm. No ST changes. QTc normal.",
+                "file_url": None,
+                "file_type": "image/jpeg",
+                "created_at": "2026-05-22T10:00:00Z"
+            }
         ]
     },
     {
@@ -345,6 +447,34 @@ in_memory_patients = [
                 "details": {
                     "visit_date": "2026-05-15"
                 }
+            }
+        ],
+        "reports": [
+            {
+                "report_id": "rpt-amit-1",
+                "type": "blood_test",
+                "name": "IgE Levels + Eosinophil Count",
+                "date": "2026-05-15",
+                "doctor": "Dr. Joshi",
+                "hospital": "Chest & Allergy Center",
+                "hosp_id": "HSP_CHEST_001",
+                "notes": "IgE elevated (450 IU/mL). Eosinophils 8%. Allergic component confirmed.",
+                "file_url": None,
+                "file_type": "image/jpeg",
+                "created_at": "2026-05-15T17:00:00Z"
+            },
+            {
+                "report_id": "rpt-amit-2",
+                "type": "x_ray",
+                "name": "Chest X-Ray",
+                "date": "2026-05-15",
+                "doctor": "Dr. Joshi",
+                "hospital": "Chest & Allergy Center",
+                "hosp_id": "HSP_CHEST_001",
+                "notes": "Hyperinflated lungs. Flattened diaphragm. Consistent with asthma.",
+                "file_url": None,
+                "file_type": "image/jpeg",
+                "created_at": "2026-05-15T17:30:00Z"
             }
         ]
     }
@@ -992,17 +1122,28 @@ async def get_patient_by_phone(phone: str):
 
 # ─── Recent Patients ──────────────────────────────────────────────────────────
 @app.get("/recent")
-async def get_recent_patients():
+async def get_recent_patients(hosp_id: str | None = None):
     """Returns the 10 most recently added patients with today_count and total_count."""
     use_mongo = get_db()
     today_str = date.today().isoformat()  # e.g. "2026-06-04"
 
     if use_mongo:
-        all_results = list(patients_collection.find().sort("created_at", -1))
+        query = {}
+        if hosp_id:
+            query = {"visits.hosp_id": hosp_id}
+            
+        all_results = list(patients_collection.find(query).sort("created_at", -1))
         total_count = len(all_results)
         patients = []
         today_count = 0
         for p in all_results[:10]:
+            # Decrypt PII if present
+            name = p.get("name", "Unknown")
+            if "secure_pii" in p:
+                decrypted_pii = decrypt_data(p["secure_pii"])
+                if not "error" in decrypted_pii:
+                    name = decrypted_pii.get("name", name)
+                    
             # Determine last visit date
             visits = p.get("visits", [])
             last_visit_date = visits[-1].get("date", "") if visits else ""
@@ -1011,22 +1152,33 @@ async def get_recent_patients():
                 today_count += 1
             patients.append({
                 "phone": p.get("phone", ""),
-                "name": p.get("name", "Unknown"),
+                "name": name,
                 "conditions": p.get("conditions", []),
                 "has_alerts": len(p.get("known_allergies", [])) > 0,
                 "last_visit_date": last_visit_date,
                 "is_today": is_today,
             })
-        # Count today across ALL patients (not just top 10)
+        # Count today across ALL patients matching query
         today_count = sum(
             1 for p in all_results
             if p.get("visits") and p["visits"][-1].get("date", "") == today_str
         )
     else:
-        total_count = len(in_memory_patients)
+        # In-memory fallback filtering
+        filtered_mem = in_memory_patients
+        if hosp_id:
+            filtered_mem = [p for p in in_memory_patients if any(v.get("hosp_id") == hosp_id for v in p.get("visits", []))]
+            
+        total_count = len(filtered_mem)
         today_count = 0
         patients = []
-        for p in in_memory_patients[-10:]:
+        for p in filtered_mem[-10:]:
+            name = p.get("name", "Unknown")
+            if "secure_pii" in p:
+                decrypted_pii = decrypt_data(p["secure_pii"])
+                if not "error" in decrypted_pii:
+                    name = decrypted_pii.get("name", name)
+                    
             visits = p.get("visits", [])
             last_visit_date = visits[-1].get("date", "") if visits else ""
             is_today = (last_visit_date == today_str)
@@ -1034,7 +1186,7 @@ async def get_recent_patients():
                 today_count += 1
             patients.append({
                 "phone": p.get("phone", ""),
-                "name": p.get("name", "Unknown"),
+                "name": name,
                 "conditions": p.get("conditions", []),
                 "has_alerts": len(p.get("known_allergies", [])) > 0,
                 "last_visit_date": last_visit_date,
@@ -1088,6 +1240,303 @@ async def acknowledge_alert(request: Request, payload: AlertAcknowledgeRequest):
         "audit_entries": len(audit_log),
         "chain_valid": verify_audit_chain(audit_log),
     }
+
+# ─── Patient Reports (Blood Tests, X-Ray, MRI, etc.) ─────────────────────────
+
+@app.get("/patient/{phone}/reports")
+async def get_patient_reports(phone: str):
+    """Get all medical reports for a patient."""
+    phone_clean = phone.strip().replace(" ", "")
+    use_mongo = get_db()
+    
+    if use_mongo:
+        patient = patients_collection.find_one({"phone": phone_clean})
+        if not patient:
+            return {"found": False, "reports": []}
+        return {"found": True, "reports": patient.get("reports", [])}
+    else:
+        patient = next((p for p in in_memory_patients if p.get("phone") == phone_clean), None)
+        if not patient:
+            return {"found": False, "reports": []}
+        return {"found": True, "reports": patient.get("reports", [])}
+
+
+@app.post("/patient/{phone}/reports")
+async def upload_patient_report(
+    phone: str,
+    request: Request,
+    report_type: str = Form(...),
+    report_name: str = Form(...),
+    report_date: str = Form(...),
+    doctor_name: str = Form(""),
+    hospital_name: str = Form(""),
+    hosp_id: str = Form(""),
+    notes: str = Form(""),
+    file: UploadFile = File(...)
+):
+    """Upload a medical report (blood test, X-ray, MRI, etc.) for a patient."""
+    phone_clean = phone.strip().replace(" ", "")
+    use_mongo = get_db()
+    
+    # Read file bytes
+    file_bytes = await file.read()
+    
+    # Upload to GCS
+    gcs_result = None
+    if GCS_UPLOAD_BUCKET and GOOGLE_CLOUD_PROJECT and "your_project" not in GOOGLE_CLOUD_PROJECT:
+        try:
+            mime = file.content_type or "application/octet-stream"
+            ext = ".jpg"
+            if mime == "image/png": ext = ".png"
+            elif mime == "application/pdf": ext = ".pdf"
+            object_name = f"reports/{phone_clean}/{report_date}/{uuid4().hex}{ext}"
+            gcs_client = storage.Client(project=GOOGLE_CLOUD_PROJECT)
+            bucket = gcs_client.bucket(GCS_UPLOAD_BUCKET)
+            blob = bucket.blob(object_name)
+            blob.upload_from_string(file_bytes, content_type=mime)
+            gcs_result = {
+                "bucket": GCS_UPLOAD_BUCKET,
+                "object": object_name,
+                "uri": f"gs://{GCS_UPLOAD_BUCKET}/{object_name}",
+                "content_type": mime,
+            }
+        except Exception as exc:
+            logger.error(f"GCS report upload failed: {exc}")
+    
+    # Build report record
+    report = {
+        "report_id": f"rpt-{uuid4().hex[:8]}",
+        "type": report_type,
+        "name": report_name,
+        "date": report_date,
+        "doctor": doctor_name or "Unknown",
+        "hospital": hospital_name or "Unknown",
+        "hosp_id": hosp_id or "",
+        "notes": notes,
+        "file_url": gcs_result.get("uri") if gcs_result else None,
+        "file_type": file.content_type or "application/octet-stream",
+        "created_at": _utc_now_iso(),
+    }
+    
+    if use_mongo:
+        result = patients_collection.update_one(
+            {"phone": phone_clean},
+            {"$push": {"reports": report}},
+        )
+        if result.matched_count == 0:
+            return {"ok": False, "message": "Patient not found"}
+    else:
+        patient = next((p for p in in_memory_patients if p.get("phone") == phone_clean), None)
+        if not patient:
+            return {"ok": False, "message": "Patient not found"}
+        patient.setdefault("reports", []).append(report)
+    
+    logger.info(f"📎 Report uploaded for {phone_clean}: {report_name} ({report_type})")
+    return {"ok": True, "report": report}
+
+
+@app.delete("/patient/{phone}/reports/{report_id}")
+async def delete_patient_report(phone: str, report_id: str):
+    """Delete a medical report."""
+    phone_clean = phone.strip().replace(" ", "")
+    use_mongo = get_db()
+    
+    if use_mongo:
+        result = patients_collection.update_one(
+            {"phone": phone_clean},
+            {"$pull": {"reports": {"report_id": report_id}}},
+        )
+        if result.matched_count == 0:
+            return {"ok": False, "message": "Patient not found"}
+    else:
+        patient = next((p for p in in_memory_patients if p.get("phone") == phone_clean), None)
+        if not patient:
+            return {"ok": False, "message": "Patient not found"}
+        patient["reports"] = [r for r in patient.get("reports", []) if r.get("report_id") != report_id]
+    
+    return {"ok": True, "deleted": report_id}
+
+# ─── Prescription Image Viewing ───────────────────────────────────────────────
+
+@app.get("/prescription/{phone}/{visit_id}/image")
+async def get_prescription_image(phone: str, visit_id: str):
+    """Get the original uploaded prescription image for a visit.
+    Returns a signed URL or base64 data for viewing.
+    """
+    phone_clean = phone.strip().replace(" ", "")
+    use_mongo = get_db()
+    
+    # Find the patient and visit
+    if use_mongo:
+        patient = patients_collection.find_one({"phone": phone_clean})
+    else:
+        patient = next((p for p in in_memory_patients if p.get("phone") == phone_clean), None)
+    
+    if not patient:
+        return {"found": False, "message": "Patient not found"}
+    
+    visit = next((v for v in patient.get("visits", []) if v.get("visit_id") == visit_id), None)
+    if not visit:
+        return {"found": False, "message": "Visit not found"}
+    
+    source_doc = visit.get("source_document")
+    if not source_doc or not isinstance(source_doc, dict):
+        return {"found": False, "message": "No prescription image available for this visit",
+                "visit_date": visit.get("date"), "doctor": visit.get("doctor")}
+    
+    gcs_uri = source_doc.get("uri")
+    if not gcs_uri:
+        return {"found": False, "message": "Prescription source document URI not available"}
+    
+    # Try to generate a signed URL
+    try:
+        parts = gcs_uri[5:].split("/", 1)
+        bucket_name = parts[0]
+        object_name = parts[1]
+        gcs_client = storage.Client(project=GOOGLE_CLOUD_PROJECT)
+        bucket = gcs_client.bucket(bucket_name)
+        blob = bucket.blob(object_name)
+        
+        signed_url = blob.generate_signed_url(
+            version="v4",
+            expiration=timedelta(minutes=30),
+            method="GET",
+        )
+        return {
+            "found": True,
+            "url": signed_url,
+            "content_type": source_doc.get("content_type", "image/jpeg"),
+            "visit_date": visit.get("date"),
+            "doctor": visit.get("doctor"),
+        }
+    except Exception as exc:
+        logger.error(f"Failed to generate signed URL: {exc}")
+        # Fallback: return the GCS URI info without a signed URL
+        return {
+            "found": True,
+            "url": None,
+            "gcs_uri": gcs_uri,
+            "content_type": source_doc.get("content_type", "image/jpeg"),
+            "message": "Signed URL generation failed — prescription stored in GCS but direct access is not available",
+            "visit_date": visit.get("date"),
+            "doctor": visit.get("doctor"),
+        }
+
+# ─── Cross-Hospital OTP-Based Record Access ───────────────────────────────────
+
+class OTPRequestPayload(BaseModel):
+    patient_phone: str
+    requesting_hosp_id: str
+    requesting_doc_id: str
+
+class OTPVerifyPayload(BaseModel):
+    patient_phone: str
+    otp: str
+    requesting_hosp_id: str
+    requesting_doc_id: str = ""
+
+@app.post("/access/request-otp")
+async def request_access_otp(payload: OTPRequestPayload):
+    """Request OTP for cross-hospital access to a patient's records.
+    In demo mode, returns the OTP directly (simulating SMS).
+    """
+    phone_clean = payload.patient_phone.strip().replace(" ", "")
+    
+    # Verify patient exists
+    use_mongo = get_db()
+    if use_mongo:
+        patient = patients_collection.find_one({"phone": phone_clean})
+    else:
+        patient = next((p for p in in_memory_patients if p.get("phone") == phone_clean), None)
+    
+    if not patient:
+        return {"ok": False, "message": "Patient not found in records"}
+    
+    # Generate 6-digit OTP
+    otp = str(_random.randint(100000, 999999))
+    otp_key = f"{phone_clean}:{payload.requesting_hosp_id}"
+    _otp_store[otp_key] = {
+        "otp": otp,
+        "expires": datetime.utcnow() + timedelta(minutes=5),
+        "doc_id": payload.requesting_doc_id,
+        "patient_name": patient.get("name", "Unknown"),
+    }
+    
+    logger.info(f"🔐 OTP generated for {phone_clean} → {payload.requesting_hosp_id}")
+    
+    # In demo mode, return the OTP directly
+    return {
+        "ok": True,
+        "message": f"OTP sent to patient's registered mobile ({phone_clean})",
+        "demo_otp": otp,  # In production, remove this — send via SMS
+        "expires_in": "5 minutes",
+        "patient_name": patient.get("name", "Unknown"),
+    }
+
+@app.post("/access/verify-otp")
+async def verify_access_otp(payload: OTPVerifyPayload):
+    """Verify OTP and grant temporary access to patient records."""
+    phone_clean = payload.patient_phone.strip().replace(" ", "")
+    otp_key = f"{phone_clean}:{payload.requesting_hosp_id}"
+    
+    stored = _otp_store.get(otp_key)
+    if not stored:
+        return {"ok": False, "message": "No OTP request found. Please request a new OTP."}
+    
+    if datetime.utcnow() > stored["expires"]:
+        del _otp_store[otp_key]
+        return {"ok": False, "message": "OTP has expired. Please request a new one."}
+    
+    if stored["otp"] != payload.otp.strip():
+        return {"ok": False, "message": "Invalid OTP. Please try again."}
+    
+    # OTP verified — grant access for 24 hours
+    grant_key = f"{phone_clean}:{payload.requesting_hosp_id}"
+    _access_grants[grant_key] = {
+        "granted_at": datetime.utcnow().isoformat() + "Z",
+        "expires": (datetime.utcnow() + timedelta(hours=24)).isoformat() + "Z",
+        "doc_id": payload.requesting_doc_id or stored["doc_id"],
+        "hosp_id": payload.requesting_hosp_id,
+    }
+    
+    # Clean up OTP
+    del _otp_store[otp_key]
+    
+    logger.info(f"✅ Access granted for {payload.requesting_hosp_id} to patient {phone_clean}")
+    
+    return {
+        "ok": True,
+        "message": "Access granted for 24 hours",
+        "grant": _access_grants[grant_key],
+    }
+
+@app.get("/access/grants/{phone}")
+async def get_access_grants(phone: str):
+    """List all active access grants for a patient."""
+    phone_clean = phone.strip().replace(" ", "")
+    now = datetime.utcnow()
+    
+    active_grants = []
+    for key, grant in list(_access_grants.items()):
+        if key.startswith(phone_clean + ":"):
+            expires = datetime.fromisoformat(grant["expires"].replace("Z", "+00:00")).replace(tzinfo=None)
+            if now < expires:
+                active_grants.append(grant)
+            else:
+                del _access_grants[key]  # Clean up expired
+    
+    return {"grants": active_grants, "count": len(active_grants)}
+
+@app.delete("/access/grants/{phone}/{hosp_id}")
+async def revoke_access_grant(phone: str, hosp_id: str):
+    """Revoke access for a specific hospital."""
+    phone_clean = phone.strip().replace(" ", "")
+    grant_key = f"{phone_clean}:{hosp_id}"
+    
+    if grant_key in _access_grants:
+        del _access_grants[grant_key]
+        return {"ok": True, "message": f"Access revoked for {hosp_id}"}
+    return {"ok": False, "message": "No active grant found"}
 
 
 # ─── Test Endpoint (Multi-Agent with pre-extracted data) ─────────────────────
