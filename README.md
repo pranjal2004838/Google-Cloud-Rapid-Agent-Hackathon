@@ -1,12 +1,12 @@
 <div align="center">
 
 # 🏥 CliniqAI
-### *AI-Powered Clinical Agent for the 95% of Clinics That Have Nothing*
+### *Multi-Agent Clinical Workflow — Built on Google ADK*
 
 [![Live Demo](https://img.shields.io/badge/🚀_Live_Demo-Cloud_Run-4285F4?style=for-the-badge)](https://cliniqai-1072937704425.asia-south1.run.app)
-[![Google ADK](https://img.shields.io/badge/Google_ADK-Powered-34A853?style=for-the-badge&logo=google)](https://cloud.google.com/vertex-ai)
-[![Gemini on Vertex AI](https://img.shields.io/badge/Gemini-Vertex_AI-FF6D00?style=for-the-badge&logo=google-cloud)](https://cloud.google.com/vertex-ai)
-[![MongoDB Atlas MCP](https://img.shields.io/badge/MongoDB_Atlas-MCP_Layer-00ED64?style=for-the-badge&logo=mongodb)](https://www.mongodb.com/atlas)
+[![Google ADK](https://img.shields.io/badge/Google_ADK-Multi--Agent_Orchestration-34A853?style=for-the-badge&logo=google)](https://google.github.io/adk-docs/)
+[![Gemini 2.0 Flash](https://img.shields.io/badge/Gemini_2.0_Flash-Vertex_AI-FF6D00?style=for-the-badge&logo=google-cloud)](https://cloud.google.com/vertex-ai)
+[![MongoDB Atlas MCP](https://img.shields.io/badge/MongoDB_Atlas-MCP_Server-00ED64?style=for-the-badge&logo=mongodb)](https://www.mongodb.com/atlas)
 [![Cloud Run](https://img.shields.io/badge/Deployed-Cloud_Run-4285F4?style=for-the-badge&logo=google-cloud)](https://cloud.run)
 
 **👉 [TRY IT LIVE RIGHT NOW](https://cliniqai-1072937704425.asia-south1.run.app) 👈**
@@ -17,9 +17,17 @@
 
 ---
 
+## ⚡ How It Works — In One Image
+
+> **The entire multi-agent pipeline, in a single glance.** From a handwritten Hindi prescription to a blocking drug-allergy alert — all automated, all traceable.
+
+![CliniqAI Multi-Agent Flow — Prescription → AI Extraction → Patient History → ⚠️ Penicillin Allergy Detected → Doctor Alerted](docs/screenshots/agent_flow_diagram.png)
+
+---
+
 ## 🎬 Demo Video
 
-> **[▶ Watch the 3-Minute Demo](https://cliniqai-1072937704425.asia-south1.run.app)** — See CliniqAI prevent a drug interaction in real time, across clinics, in Hindi.
+> **[▶ Watch the 3-Minute Demo](https://cliniqai-1072937704425.asia-south1.run.app)** — See CliniqAI's multi-agent pipeline prevent a drug interaction in real time, across clinics, in Hindi.
 
 [![Demo Preview](docs/screenshots/landing.png)](https://cliniqai-1072937704425.asia-south1.run.app)
 
@@ -43,27 +51,67 @@ This is not an inconvenience. It kills people.
 
 ---
 
-## 💡 The Solution — CliniqAI
+## 🤖 The Core Architecture — Real Multi-Agent Orchestration with Google ADK
 
-CliniqAI is a **Google-native agentic clinical system** that gives small clinics the power of a hospital-grade patient management system, powered by Gemini AI, at zero cost.
+This is not a single LLM call wrapped in an API. CliniqAI implements a **true multi-agent system** using Google's Agent Development Kit (ADK): a Supervisor that coordinates four specialized, independent agents — each with a single responsibility, each traceable, each replaceable.
 
-**One photo of a handwritten prescription → complete patient intelligence in seconds.**
+### The Supervisor Pattern
 
 ```
-📸 Doctor photographs handwritten Hindi prescription
-          ↓
-🧠 Gemini on Vertex AI reads + extracts structured data  
-          ↓
-🔍 MongoDB MCP searches patient's full cross-clinic history
-          ↓
-⚠️  ALERT: "Patient has Penicillin allergy — prescribed Amoxicillin!"
-          ↓
-✅ Doctor changes medication. Patient is safe.
+📸 Doctor uploads handwritten prescription (Hindi / English)
+          │
+          ▼
+┌─────────────────────────────────────────────────────────┐
+│               SUPERVISOR (ADK Orchestrator)             │
+│                                                         │
+│  ┌─────────────────────┐  ┌──────────────────────────┐  │
+│  │   ExtractionAgent   │  │  PatientContextAgent     │  │
+│  │                     │  │                          │  │
+│  │  Gemini 2.0 Flash   │  │  MongoDB Atlas via MCP   │  │
+│  │  reads prescription │  │  fetches patient history │  │
+│  │  → structured JSON  │  │  → allergies, active Rx  │  │
+│  └─────────┬───────────┘  └──────────┬───────────────┘  │
+│            │   asyncio.gather()      │                   │
+│            └────────────┬────────────┘                   │
+│                         ▼                                │
+│              ┌──────────────────┐                        │
+│              │   SafetyAgent    │                        │
+│              │                 │                        │
+│              │ checks medicines│                        │
+│              │ against history │                        │
+│              │ → ALERT or PASS │                        │
+│              └────────┬─────────┘                       │
+│                       │                                  │
+│              ┌────────▼──────────┐                      │
+│              │  RecordUpdateAgent│                      │
+│              │                  │                      │
+│              │  writes visit to │                      │
+│              │  MongoDB + audit │                      │
+│              │  trail           │                      │
+│              └──────────────────┘                      │
+└─────────────────────────────────────────────────────────┘
+          │
+          ▼
+⚠️  "Patient has Penicillin allergy — prescribed Amoxicillin!"
+          │
+          ▼
+✅  Doctor changes medication. Patient is safe.
 ```
+
+### Why This Architecture Matters
+
+| Design Decision | What It Enables |
+|:----------------|:----------------|
+| **Parallel execution** (`asyncio.gather`) | ExtractionAgent and PatientContextAgent run simultaneously — Gemini's OCR latency is hidden behind the MongoDB lookup |
+| **Pydantic-validated state handoff** | Each agent's output is schema-validated before the next agent receives it — no silent data corruption across agent boundaries |
+| **Confidence-gated workflow** | If extraction confidence < 0.5 on critical fields (medicines, patient name), the Supervisor flags `REVIEW_REQUIRED` before writing to the database |
+| **Safety gate before persistence** | HIGH-severity drug alerts block record commit until doctor override is logged — the safety check is a hard gate, not a suggestion |
+| **Full trace log per workflow** | Every agent invocation — agent name, start time, duration\_ms, status — is recorded in `WorkflowState.trace` for auditability |
+| **ADK-native tool mapping** | Vision tool and alert tool are registered as `FunctionTool`; MongoDB is connected as `McpToolset` — the same tools the ADK Agent uses |
 
 ---
 
-## 🏗️ Architecture
+## 🏗️ Full Stack
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -74,53 +122,60 @@ CliniqAI is a **Google-native agentic clinical system** that gives small clinics
 │       ▼                                                     │
 │  ☁️  Cloud Run (FastAPI Backend)                            │
 │       │                                                     │
-│       ├──► 🤖 ADK Agent Orchestrator                        │
+│       ├──► 🤖 ADK Supervisor (Orchestrator)                 │
 │       │         │                                           │
-│       │         ├──► 🧠 Gemini on Vertex AI                 │
-│       │         │    (Handwriting OCR, Hindi/English)       │
+│       │         ├──► 🧠 ExtractionAgent                    │
+│       │         │    └─ Gemini 2.0 Flash on Vertex AI      │
+│       │         │       (Handwriting OCR, Hindi/English)   │
 │       │         │                                           │
-│       │         ├──► 🗄️  Cloud Storage                     │
-│       │         │    (Original prescription archive)        │
+│       │         ├──► 🔍 PatientContextAgent                │
+│       │         │    └─ MongoDB Atlas via MCP Server        │
+│       │         │       (Cross-clinic history + allergies) │
 │       │         │                                           │
-│       │         └──► 🍃 MongoDB Atlas via MCP               │
-│       │              (Patient memory + vector search)       │
+│       │         ├──► ⚠️  SafetyAgent                       │
+│       │         │    └─ Drug conflict + allergy evaluation  │
+│       │         │                                           │
+│       │         └──► 💾 RecordUpdateAgent                  │
+│       │              └─ Persistent write + audit trail      │
 │       │                                                     │
-│       └──► ⚠️  Safety Alert Engine                          │
-│                (Drug interactions + allergy checks)         │
+│       └──► 🗄️  Cloud Storage                               │
+│                (Original prescription image archive)        │
 └─────────────────────────────────────────────────────────────┘
 ```
 
-**Full Stack:**
 | Layer | Technology |
 |:------|:-----------|
-| Agent Orchestration | **Google Agent Development Kit (ADK)** |
-| AI / OCR | **Gemini 2.0 Flash on Vertex AI** |
-| Patient Memory | **MongoDB Atlas + MCP Server** |
-| Document Storage | **Google Cloud Storage** |
-| Deployment | **Google Cloud Run** |
-| Backend | **Python + FastAPI** |
+| **Agent Orchestration** | **Google Agent Development Kit (ADK)** — `Supervisor` + 4 specialized agents |
+| **Parallel Execution** | `asyncio.gather` — ExtractionAgent ∥ PatientContextAgent |
+| **AI / Multilingual OCR** | **Gemini 2.0 Flash on Vertex AI** |
+| **Patient Memory** | **MongoDB Atlas** connected via **MCP Server** (`McpToolset`) |
+| **Document Storage** | **Google Cloud Storage** |
+| **Deployment** | **Google Cloud Run** |
+| **Backend** | **Python + FastAPI** |
 
 ---
 
-## ✨ Google-Native Hero Features
+## ✨ Key Capabilities
 
-### 1. 🖊️ Multilingual Handwriting Extraction *(Gemini on Vertex AI)*
-Upload a photo of a handwritten prescription in **English, Hindi, Bengali, Telugu, Marathi, or Tamil**. Gemini extracts diagnosis, medications, dosages, and doctor notes — zero manual typing.
+### 1. 🖊️ Multilingual Handwriting Extraction *(ExtractionAgent → Gemini 2.0 Flash on Vertex AI)*
+Upload a photo of a handwritten prescription in **English, Hindi, Bengali, Telugu, Marathi, or Tamil**. The ExtractionAgent calls Gemini with structured output schema to return diagnosis, medications, dosages, and doctor notes as validated JSON — no manual typing, no regex parsing.
 
-### 2. 🤖 Agentic Workflow Orchestration *(Google ADK)*
-The ADK agent automatically orchestrates extraction → validation → storage → safety-check as a seamless pipeline. No human coordination required.
+### 2. 🤖 Supervised Multi-Agent Orchestration *(Google ADK Supervisor)*
+The Supervisor wires four independent agents into a deterministic pipeline with hard validation gates between each step. ExtractionAgent and PatientContextAgent execute in **parallel** via `asyncio.gather` to minimize end-to-end latency. The Supervisor maintains a full `WorkflowState` trace across all agents — not a single monolithic function.
 
-### 3. ⚠️ Real-Time Drug Safety Alerting
-Before a doctor confirms any treatment, CliniqAI cross-checks:
-- Known patient allergies (from any past clinic)
-- Active medications (duplicate prescriptions)
+### 3. ⚠️ Real-Time Drug Safety with a Hard Gate *(SafetyAgent)*
+Before any record is committed, the SafetyAgent cross-checks every extracted medication against:
+- Known patient allergies (across all clinics in history)
+- Active concurrent medications (duplicate / conflicting prescriptions)
 - Drug-to-drug interaction flags
 
-### 4. 🔍 Cross-Clinic Patient Intelligence *(MongoDB Atlas MCP)*
-A patient's full history — from every clinic they've ever visited — unified under their mobile number. One phone number = one permanent medical record.
+A HIGH-severity alert sets `requires_override = True` on the `SafetyAssessment`, which the Supervisor enforces as a blocking gate — the RecordUpdateAgent will not write until the doctor explicitly acknowledges.
+
+### 4. 🔍 Cross-Clinic Patient Memory *(PatientContextAgent → MongoDB Atlas MCP)*
+MongoDB Atlas is connected to the ADK agent as an `McpToolset`. A patient's complete history — every clinic they've ever visited — is retrieved by mobile number. One phone number = one permanent medical record, regardless of which clinic the patient is at today.
 
 ### 5. 🔐 Patient-Controlled Access
-Patients grant and revoke clinic access in real time. Complete data sovereignty — patients own their records.
+Patients grant and revoke clinic access in real time. Complete data sovereignty — patients own their records, not individual clinics.
 
 ---
 
@@ -133,7 +188,7 @@ Patients grant and revoke clinic access in real time. Complete data sovereignty 
 | Cost to Implement | **₹0 (Free)** |
 | Setup Time | **5 minutes** |
 | Languages Supported | 6 (English, Hindi, Bengali, Telugu, Marathi, Tamil) |
-| Prescription Read Time | **< 3 seconds** |
+| Prescription Processing | **< 3 seconds** end-to-end |
 
 ---
 
@@ -167,14 +222,14 @@ Search patients by phone number, view the active queue, and open any patient fil
 ---
 
 ### Patient Clinical File — *Complete Medical Intelligence*
-Every visit, every prescription, every test, every allergy — in one screen. With the **AI Clinical Assistant** chat for deep patient history queries.
+Every visit, every prescription, every test, every allergy — in one screen. With the **AI Clinical Assistant** chat backed by the ADK agent's MongoDB MCP tool.
 
 ![Patient Detail View](docs/screenshots/patient_detail.png)
 
 ---
 
 ### Patient Portal — *Patients Own Their Data*
-Patients view all records from all clinics, manage access permissions, and chat with the AI health assistant about their own medications.
+Patients view all records from all clinics, manage access permissions, and query the AI health assistant about their own medications.
 
 ![Patient Portal](docs/screenshots/patient_portal.png)
 
@@ -196,7 +251,7 @@ pip install -r requirements.txt
 python -m uvicorn cliniqai.main:app --reload
 ```
 
-**Or just use the live deployment → [https://cliniqai-1072937704425.asia-south1.run.app](https://cliniqai-1072937704425.asia-south1.run.app)**
+**Or use the live deployment → [https://cliniqai-1072937704425.asia-south1.run.app](https://cliniqai-1072937704425.asia-south1.run.app)**
 
 ---
 
@@ -212,15 +267,32 @@ MONGODB_DB_NAME=cliniqai
 
 ---
 
+## 🔬 Agent Implementation Reference
+
+The orchestration code is in [`cliniqai/agent/orchestration/`](cliniqai/agent/orchestration/):
+
+| File | Role |
+|:-----|:-----|
+| [`supervisor.py`](cliniqai/agent/orchestration/supervisor.py) | Orchestrator — parallel gather, validation gates, trace log |
+| [`agents/extraction_agent.py`](cliniqai/agent/orchestration/agents/extraction_agent.py) | Calls Gemini 2.0 Flash for OCR, returns `ExtractedData` |
+| [`agents/patient_context_agent.py`](cliniqai/agent/orchestration/agents/patient_context_agent.py) | Fetches & merges patient history via MongoDB MCP |
+| [`agents/safety_agent.py`](cliniqai/agent/orchestration/agents/safety_agent.py) | Evaluates drug conflicts, sets `requires_override` flag |
+| [`agents/record_update_agent.py`](cliniqai/agent/orchestration/agents/record_update_agent.py) | Persists visit record with full audit trail |
+| [`adk_wrapper.py`](cliniqai/agent/orchestration/adk_wrapper.py) | ADK `Agent` definition with `FunctionTool` + `McpToolset` mapping |
+| [`state.py`](cliniqai/agent/orchestration/state.py) | Pydantic `WorkflowState` — shared schema across all agents |
+
+---
+
 ## 🚧 Challenges We Solved
 
 | Challenge | How We Solved It |
 |:----------|:----------------|
-| Handwritten Hindi OCR accuracy | Few-shot prompting with Gemini + structured output validation |
-| Cross-clinic record unification without login | Patient identified by mobile number as universal key |
-| Real-time safety alerts before doctor confirmation | ADK agent pipeline with blocking safety check gate |
-| Zero-latency MCP tool calls | Connection pooling + async MongoDB Atlas MCP server |
-| Multilingual UI for non-English doctors | Dynamic language selection at login, persisted in session |
+| Gemini OCR latency on slow connections | ExtractionAgent and PatientContextAgent run in **parallel** (`asyncio.gather`) — MongoDB lookup hides the Gemini call latency |
+| Silent data corruption between agents | Pydantic schema validation at every agent boundary via `WorkflowState` — the Supervisor rejects malformed output before the next agent starts |
+| Blocking safety alerts without UX friction | `SafetyAssessment.requires_override` flag propagates through the Supervisor as a hard gate; the UI renders a mandatory acknowledgement modal |
+| Cross-clinic records without shared logins | Patient identified by mobile number as the universal key across all clinics in MongoDB |
+| Handwritten Hindi OCR accuracy | Few-shot structured-output prompting with Gemini — confidence scores returned per-field; low-confidence triggers `REVIEW_REQUIRED` in the Supervisor |
+| MCP tool reliability in production | `McpToolset` with connection pooling; async MongoDB Atlas MCP server |
 
 ---
 
@@ -238,7 +310,7 @@ MONGODB_DB_NAME=cliniqai
 
 Built with ❤️ for the **Google Cloud Rapid Agent Hackathon**
 
-> *"We didn't build another hospital EHR. We built the thing that 95% of clinics in the world actually need — something free, mobile, multilingual, and intelligent."*
+> *"We didn't build a single-LLM chatbot. We built a real multi-agent clinical system — Supervisor, four specialized agents, MCP-connected memory, hard safety gates — that 95% of clinics in the world can actually use: free, mobile, multilingual, and safe."*
 
 ---
 
@@ -255,11 +327,11 @@ Built with ❤️ for the **Google Cloud Rapid Agent Hackathon**
 
 <div align="center">
 
-**Built on Google Cloud · Powered by Gemini · Deployed on Cloud Run**
+**Built on Google Cloud · Orchestrated with Google ADK · Deployed on Cloud Run**
 
-[![Made with Gemini](https://img.shields.io/badge/Made_with-Gemini_AI-4285F4?style=flat-square&logo=google)](https://deepmind.google/technologies/gemini/)
-[![Google ADK](https://img.shields.io/badge/Google-ADK-34A853?style=flat-square)](https://cloud.google.com/vertex-ai)
-[![MongoDB](https://img.shields.io/badge/MongoDB-Atlas_MCP-00ED64?style=flat-square&logo=mongodb)](https://mongodb.com)
+[![Google ADK](https://img.shields.io/badge/Google-ADK_Multi--Agent-34A853?style=flat-square)](https://google.github.io/adk-docs/)
+[![Gemini 2.0 Flash](https://img.shields.io/badge/Gemini_2.0_Flash-Vertex_AI-FF6D00?style=flat-square&logo=google-cloud)](https://cloud.google.com/vertex-ai)
+[![MongoDB MCP](https://img.shields.io/badge/MongoDB-Atlas_MCP-00ED64?style=flat-square&logo=mongodb)](https://mongodb.com)
 
 *For 800 million patients who deserve better healthcare.*
 
