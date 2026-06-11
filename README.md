@@ -318,10 +318,8 @@ Built with ❤️ for the **Google Cloud Rapid Agent Hackathon**
 
 | Document | Description |
 |:---------|:------------|
-| [Complete Build Plan](CliniqAI_Complete_Build_Plan.md) | Full technical implementation guide |
+| [Complete Build Plan](CliniqAI_Complete_Build_Plan.md) | Full technical architecture & implementation details |
 | [Deployment Guide](DEPLOYMENT_GUIDE.md) | Step-by-step Google Cloud deployment |
-| [Why CliniqAI is Different](WHY_CLINIQAI_IS_DIFFERENT.md) | Market positioning & competitive analysis |
-| [Phase 2: HIE Implementation](PHASE_2_HIE_IMPLEMENTATION.md) | Health Information Exchange roadmap |
 
 ---
 
